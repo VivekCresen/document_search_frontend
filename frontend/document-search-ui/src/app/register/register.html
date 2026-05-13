@@ -1,0 +1,61 @@
+<div class="login-bg">
+  <div class="login-card">
+
+    <!-- Brand -->
+    <div class="login-brand">
+      <div class="login-brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <span class="login-brand-name">DocSearch</span>
+    </div>
+
+    <!-- Header -->
+    <div class="login-header">
+      <h1 class="login-title">Create Account</h1>
+      <p class="login-sub">Get started with your 30 days free trial</p>
+    </div>
+
+    @if (error()) {
+      <div class="auth-alert auth-alert-error">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        {{ error() }}
+      </div>
+    }
+    @if (success()) {
+      <div class="auth-alert auth-alert-success">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        {{ success() }}
+      </div>
+    }
+
+    <!-- Fields -->
+    <div class="login-fields">
+      <input
+        class="login-input"
+        type="text"
+        placeholder="Username"
+        [ngModel]="username()" (ngModelChange)="username.set($event)" (keydown.enter)="register()" />
+
+      <input
+        class="login-input"
+        type="password"
+        placeholder="Password"
+        [ngModel]="password()" (ngModelChange)="password.set($event)" (keydown.enter)="register()" />
+
+      <input
+        class="login-input"
+        type="password"
+        placeholder="Confirm Password"
+        [ngModel]="confirm()" (ngModelChange)="confirm.set($event)" (keydown.enter)="register()" />
+    </div>
+
+    <button class="login-btn" (click)="register()">Sign Up</button>
+
+    <p class="login-footer">
+      Already have an account?&nbsp;<a routerLink="/login" class="login-signup-link">Sign In</a>
+    </p>
+
+  </div>
+</div>
