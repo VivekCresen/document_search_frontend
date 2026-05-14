@@ -3,7 +3,9 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ApiService } from './services/api.service';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -39,6 +41,8 @@ export interface ManagedFile {
 })
 export class App implements AfterViewInit {
   private sanitizer = inject(DomSanitizer);
+  private router = inject(Router);
+  private api = inject(ApiService);
 
   @ViewChild('messagesEnd') messagesEnd!: ElementRef;
   @ViewChild('promptTextarea') promptTextarea!: ElementRef<HTMLTextAreaElement>;
@@ -53,6 +57,41 @@ export class App implements AfterViewInit {
     this.conversations().find(c => c.id === this.activeConvId()) ?? null
   );
   messages = computed(() => this.activeConversation()?.messages ?? []);
+
+  // ── Sidebar ──
+  sidebarCollapsed = signal(false);
+  toggleSidebar() { this.sidebarCollapsed.update(v => !v); }
+
+  // ── Profile dropdown ──
+  profileOpen = signal(false);
+  currentUser  = signal(localStorage.getItem('ds_current_user') ?? 'User');
+  toggleProfile(event: MouseEvent) { event.stopPropagation(); this.profileOpen.update(v => !v); }
+  closeProfile() { this.profileOpen.set(false); }
+
+  // ── Edit conversation title ──
+  editingConvId = signal<string | null>(null);
+  editingTitle  = signal('');
+
+  startEdit(id: string, title: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.editingConvId.set(id);
+    this.editingTitle.set(title);
+  }
+
+  commitEdit(id: string) {
+    const t = this.editingTitle().trim();
+    if (t) {
+      this.conversations.update(cs => cs.map(c => c.id === id ? { ...c, title: t } : c));
+    }
+    this.editingConvId.set(null);
+  }
+
+  cancelEdit() { this.editingConvId.set(null); }
+
+  onEditKeydown(event: KeyboardEvent, id: string) {
+    if (event.key === 'Enter')  { event.preventDefault(); this.commitEdit(id); }
+    if (event.key === 'Escape') { this.cancelEdit(); }
+  }
 
   // ── File manager ──
   showUploadModal = signal(false); // Upload Documents modal
@@ -74,6 +113,11 @@ export class App implements AfterViewInit {
   ];
 
   ngAfterViewInit() { }
+
+  logout() {
+    localStorage.removeItem('ds_current_user');
+    this.router.navigate(['/login']);
+  }
 
   // ── Conversations ──
   newChat() {
@@ -109,7 +153,7 @@ export class App implements AfterViewInit {
   }
 
   // ── Send ──
-  async send() {
+  send() {
     const text = this.prompt().trim();
     if (!text || this.loading()) return;
 
@@ -140,23 +184,58 @@ export class App implements AfterViewInit {
     this.loading.set(true);
     setTimeout(() => this.scrollToBottom());
 
-    // TODO: replace with real API call to POST /query
-    await new Promise(r => setTimeout(r, 1200));
+    const currentUser = localStorage.getItem('ds_current_user') ?? 'anonymous';
+    const convId = this.activeConvId()!;
+    let questionIndex = this.messages().length;
 
-    const assistantMsg: Message = {
-      role: 'assistant',
-      content: 'This is a placeholder response. Connect this to your Spring AI backend at POST /query.',
-      timestamp: new Date()
+    const payload = {
+      metadata: { serviceReferenceId: crypto.randomUUID() },
+      requestData: {
+        request_id: crypto.randomUUID(),
+        email: currentUser,
+        username: currentUser.split('@')[0],
+        question: text,
+        question_id: questionIndex,
+        conversation_id: convId,
+        product_name: 'MM',
+        profile: 'dev',
+        user_id: 1
+      }
     };
 
-    this.conversations.update(convs => convs.map(c =>
-      c.id === this.activeConvId()
-        ? { ...c, messages: [...c.messages, assistantMsg] }
-        : c
-    ));
-
-    this.loading.set(false);
-    setTimeout(() => this.scrollToBottom());
+    this.api.query(payload).subscribe({
+      next: (res) => {
+        const answerText = res.responseData?.answer?.[0]?.Text
+          ?? res.responseData?.standalone_query
+          ?? 'No answer returned.';
+        const assistantMsg: Message = {
+          role: 'assistant',
+          content: answerText,
+          timestamp: new Date()
+        };
+        this.conversations.update(convs => convs.map(c =>
+          c.id === this.activeConvId()
+            ? { ...c, messages: [...c.messages, assistantMsg] }
+            : c
+        ));
+        this.loading.set(false);
+        setTimeout(() => this.scrollToBottom());
+      },
+      error: (err) => {
+        const errorMsg: Message = {
+          role: 'assistant',
+          content: `Error: ${err.status === 0 ? 'Cannot reach the backend. Is it running on port 8085?' : err.message}`,
+          timestamp: new Date()
+        };
+        this.conversations.update(convs => convs.map(c =>
+          c.id === this.activeConvId()
+            ? { ...c, messages: [...c.messages, errorMsg] }
+            : c
+        ));
+        this.loading.set(false);
+        setTimeout(() => this.scrollToBottom());
+      }
+    });
   }
 
   onKeydown(event: KeyboardEvent) {
@@ -243,6 +322,13 @@ export class App implements AfterViewInit {
     this.allDocuments.update(docs => [...docs, saved]);
     this.stagedFiles.update(files => files.map(x => x.id === id ? { ...x, saved: true } : x));
     this.pendingAttachments.update(p => [...p, { id: f.id, name: f.name }]);
+
+    const username = localStorage.getItem('ds_current_user') ?? 'anonymous';
+    const folderId = this.activeConvId() ?? 'default';
+    this.api.uploadDocument(f.file, folderId, username).subscribe({
+      next: () => { /* upload success — document already added to UI */ },
+      error: (err) => console.error('Upload failed for', f.name, err)
+    });
   }
 
   // Save every staged file at once — keep visible in upload modal
@@ -254,6 +340,15 @@ export class App implements AfterViewInit {
     this.allDocuments.update(docs => [...docs, ...toSave]);
     this.stagedFiles.update(files => files.map(f => ({ ...f, saved: true })));
     this.pendingAttachments.update(p => [...p, ...unsaved.map(f => ({ id: f.id, name: f.name }))]);
+
+    const username = localStorage.getItem('ds_current_user') ?? 'anonymous';
+    const folderId = this.activeConvId() ?? 'default';
+    unsaved.forEach(f => {
+      this.api.uploadDocument(f.file, folderId, username).subscribe({
+        next: () => { /* upload success */ },
+        error: (err) => console.error('Upload failed for', f.name, err)
+      });
+    });
   }
 
   // Remove a file from the pending chips without deleting it from allDocuments

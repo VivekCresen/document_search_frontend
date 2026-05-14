@@ -1,0 +1,70 @@
+<div class="login-bg">
+  <div class="login-card">
+
+    <!-- Brand -->
+    <div class="login-brand">
+      <img src="assets/logo.png" alt="Cresen Solutions" class="login-brand-logo" />
+    </div>
+
+    <!-- System name -->
+    <div class="login-system-name">DocQuest</div>
+
+    <!-- Header -->
+    <div class="login-header login-header-tight">
+      <h1 class="login-title">Create Account</h1>
+    </div>
+
+    @if (error()) {
+      <div class="auth-alert auth-alert-error">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        {{ error() }}
+      </div>
+    }
+    @if (success()) {
+      <div class="auth-alert auth-alert-success">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        {{ success() }}
+      </div>
+    }
+
+    <!-- Fields -->
+    <div class="login-fields">
+      <div class="float-field">
+        <input
+          class="login-input float-input"
+          type="email"
+          id="reg-email"
+          placeholder=" "
+          [ngModel]="username()" (ngModelChange)="username.set($event)" (keydown.enter)="register()" />
+        <label class="float-label" for="reg-email">Email</label>
+      </div>
+
+      <div class="float-field">
+        <input
+          class="login-input float-input"
+          type="password"
+          id="reg-password"
+          placeholder=" "
+          [ngModel]="password()" (ngModelChange)="password.set($event)" (keydown.enter)="register()" />
+        <label class="float-label" for="reg-password">Password</label>
+      </div>
+
+      <div class="float-field">
+        <input
+          class="login-input float-input"
+          type="password"
+          id="reg-confirm"
+          placeholder=" "
+          [ngModel]="confirm()" (ngModelChange)="confirm.set($event)" (keydown.enter)="register()" />
+        <label class="float-label" for="reg-confirm">Confirm Password</label>
+      </div>
+    </div>
+
+    <button class="login-btn" (click)="register()">Sign Up</button>
+
+    <p class="login-footer login-footer-lg">
+      Already have an account?&nbsp;<a routerLink="/login" class="login-signup-link">Sign In</a>
+    </p>
+
+  </div>
+</div>

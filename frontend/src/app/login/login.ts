@@ -21,6 +21,7 @@ export class Login {
     }
     const users: Record<string, string> = JSON.parse(localStorage.getItem('ds_users') ?? '{"admin":"admin"}');
     if (users[this.username()] === this.password()) {
+      localStorage.setItem('ds_current_user', this.username());
       this.router.navigate(['/chat']);
     } else {
       this.error.set('Invalid username or password.');
