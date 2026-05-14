@@ -1,5 +1,5 @@
 import {
-  Component, signal, ElementRef, ViewChild, computed, inject, AfterViewInit
+  Component, signal, ElementRef, ViewChild, computed, inject, AfterViewInit, HostListener
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -60,7 +60,30 @@ export class App implements AfterViewInit {
 
   // ── Sidebar ──
   sidebarCollapsed = signal(false);
+  sidebarWidth     = signal(252); // px, matches --sidebar-w default
+  private _resizing = false;
+  private _resizeStartX = 0;
+  private _resizeStartW = 0;
+
   toggleSidebar() { this.sidebarCollapsed.update(v => !v); }
+
+  startResize(event: MouseEvent) {
+    this._resizing     = true;
+    this._resizeStartX = event.clientX;
+    this._resizeStartW = this.sidebarWidth();
+    event.preventDefault();
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onMouseMove(event: MouseEvent) {
+    if (!this._resizing) return;
+    const delta = event.clientX - this._resizeStartX;
+    const newW  = Math.min(480, Math.max(180, this._resizeStartW + delta));
+    this.sidebarWidth.set(newW);
+  }
+
+  @HostListener('document:mouseup')
+  onMouseUp() { this._resizing = false; }
 
   // ── Profile dropdown ──
   profileOpen = signal(false);
@@ -185,6 +208,7 @@ export class App implements AfterViewInit {
     setTimeout(() => this.scrollToBottom());
 
     const currentUser = localStorage.getItem('ds_current_user') ?? 'anonymous';
+    const userId = parseInt(localStorage.getItem('ds_user_id') ?? '1', 10);
     const convId = this.activeConvId()!;
     let questionIndex = this.messages().length;
 
@@ -199,7 +223,7 @@ export class App implements AfterViewInit {
         conversation_id: convId,
         product_name: 'MM',
         profile: 'dev',
-        user_id: 1
+        user_id: userId
       }
     };
 

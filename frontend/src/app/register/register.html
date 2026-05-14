@@ -32,10 +32,30 @@
       <div class="float-field">
         <input
           class="login-input float-input"
+          type="text"
+          id="reg-username"
+          placeholder=" "
+          [ngModel]="userName()" (ngModelChange)="userName.set($event)" (keydown.enter)="register()" />
+        <label class="float-label" for="reg-username">Username</label>
+      </div>
+
+      <div class="float-field">
+        <input
+          class="login-input float-input"
+          type="text"
+          id="reg-fullname"
+          placeholder=" "
+          [ngModel]="fullName()" (ngModelChange)="fullName.set($event)" (keydown.enter)="register()" />
+        <label class="float-label" for="reg-fullname">Full Name</label>
+      </div>
+
+      <div class="float-field">
+        <input
+          class="login-input float-input"
           type="email"
           id="reg-email"
           placeholder=" "
-          [ngModel]="username()" (ngModelChange)="username.set($event)" (keydown.enter)="register()" />
+          [ngModel]="email()" (ngModelChange)="email.set($event)" (keydown.enter)="register()" />
         <label class="float-label" for="reg-email">Email</label>
       </div>
 
@@ -60,7 +80,9 @@
       </div>
     </div>
 
-    <button class="login-btn" (click)="register()">Sign Up</button>
+    <button class="login-btn" (click)="register()" [disabled]="loading()">
+      {{ loading() ? 'Creating account…' : 'Sign Up' }}
+    </button>
 
     <p class="login-footer login-footer-lg">
       Already have an account?&nbsp;<a routerLink="/login" class="login-signup-link">Sign In</a>

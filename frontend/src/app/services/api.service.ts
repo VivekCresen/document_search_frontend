@@ -51,11 +51,42 @@ export interface DocumentLinkResponse {
   viewLink: string;
 }
 
+// ── Auth ──
+export interface RegisterRequest {
+  userName: string;
+  fullName: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginRequest {
+  userNameOrEmail: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  token?: string;
+  id?: string;
+  userName?: string;
+  email?: string;
+  message?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly base = environment.apiUrl;
+  private readonly base = '';
 
   constructor(private http: HttpClient) {}
+
+  /** POST /api/auth/register */
+  register(payload: RegisterRequest): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.base}/api/auth/register`, payload);
+  }
+
+  /** POST /api/auth/login */
+  login(payload: LoginRequest): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.base}/api/auth/login`, payload);
+  }
 
   /** POST /query — ask the AI a question */
   query(payload: QueryRequest): Observable<QueryResponse> {

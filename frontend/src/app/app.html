@@ -1,18 +1,22 @@
 <div class="layout" [class.sidebar-collapsed]="sidebarCollapsed()" (click)="closeProfile()">
 
-  <aside class="sidebar">
+  <aside class="sidebar" [style.width.px]="sidebarCollapsed() ? 0 : sidebarWidth()">
     <div class="sidebar-header">
       <div class="brand">
         <img src="assets/logo.png" alt="Cresen Solutions" class="sidebar-brand-logo" />
       </div>
-      <div class="sidebar-header-actions">
-        <button class="new-chat-btn" (click)="newChat()" title="New Chat">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-        </button>
-        <button class="sidebar-collapse-btn" (click)="toggleSidebar()" title="Collapse sidebar">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
-      </div>
+      <!-- Hamburger toggle -->
+      <button class="sidebar-hamburger" (click)="toggleSidebar()" title="Collapse sidebar">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+
+    <!-- New Session button -->
+    <div class="sidebar-new-session">
+      <button class="new-session-btn" (click)="newChat()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        New Session
+      </button>
     </div>
 
     <div class="sidebar-body">
@@ -65,11 +69,13 @@
         }
       </button>
     </div>
+    <!-- Drag-to-resize handle -->
+    <div class="sidebar-resize-handle" (mousedown)="startResize($event)"></div>
   </aside>
 
-  <!-- Expand button shown when sidebar is collapsed -->
+  <!-- Expand button (hamburger) shown when sidebar is collapsed -->
   <button class="sidebar-expand-btn" (click)="toggleSidebar()" title="Expand sidebar">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+    <span></span><span></span><span></span>
   </button>
 
   <!-- ════════════════ MAIN ════════════════ -->

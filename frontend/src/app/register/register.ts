@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { ApiService } from '../services/api.service';
 
 @Component({
   selector: 'app-register',
@@ -8,16 +9,19 @@ import { Router, RouterLink } from '@angular/router';
   templateUrl: './register.html'
 })
 export class Register {
-  username = signal('');
+  userName = signal('');
+  fullName = signal('');
+  email    = signal('');
   password = signal('');
   confirm  = signal('');
   error    = signal('');
   success  = signal('');
+  loading  = signal(false);
 
-  constructor(private router: Router) {}
+  constructor(private router: Router, private api: ApiService) {}
 
   register() {
-    if (!this.username().trim() || !this.password().trim() || !this.confirm().trim()) {
+    if (!this.userName().trim() || !this.fullName().trim() || !this.email().trim() || !this.password().trim() || !this.confirm().trim()) {
       this.error.set('All fields are required.');
       return;
     }
@@ -25,21 +29,24 @@ export class Register {
       this.error.set('Passwords do not match.');
       return;
     }
-    if (this.password().length < 4) {
-      this.error.set('Password must be at least 4 characters.');
+    if (this.password().length < 6) {
+      this.error.set('Password must be at least 6 characters.');
       return;
     }
-
-    const users: Record<string, string> = JSON.parse(localStorage.getItem('ds_users') ?? '{"admin":"admin"}');
-    if (users[this.username()]) {
-      this.error.set('Username already exists.');
-      return;
-    }
-
-    users[this.username()] = this.password();
-    localStorage.setItem('ds_users', JSON.stringify(users));
+    this.loading.set(true);
     this.error.set('');
-    this.success.set('Account created! Redirecting to login…');
-    setTimeout(() => this.router.navigate(['/login']), 1500);
+    this.api.register({ userName: this.userName(), fullName: this.fullName(), email: this.email(), password: this.password() }).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.success.set('Account created! Redirecting to login…');
+        setTimeout(() => this.router.navigate(['/login']), 1500);
+      },
+      error: (err) => {
+        this.loading.set(false);
+        console.error('Register error:', err);
+        const msg = err.error?.message ?? err.error?.error ?? err.message ?? 'Registration failed. Please try again.';
+        this.error.set(msg);
+      }
+    });
   }
 }
