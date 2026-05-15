@@ -125,6 +125,7 @@ export class App implements AfterViewInit {
   viewingFile      = signal<ManagedFile | null>(null);
   isDragging       = signal(false);
   docCount         = computed(() => this.allDocuments().length);
+  manageTab        = signal<'upload' | 'documents'>('documents');
 
   // ── Suggestion chips ──
   readonly chips = [
@@ -294,7 +295,7 @@ export class App implements AfterViewInit {
   openModal()        { this.showUploadModal.set(true); }
   closeModal()       { this.showUploadModal.set(false); }
   openManageModal()  { this.showManageModal.set(true); }
-  closeManageModal() { this.showManageModal.set(false); }
+  closeManageModal() { this.showManageModal.set(false); this.manageTab.set('documents'); }
 
   onDragOver(event: DragEvent) {
     event.preventDefault();

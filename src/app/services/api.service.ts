@@ -93,13 +93,16 @@ export class ApiService {
     return this.http.post<QueryResponse>(`${this.base}/query`, payload);
   }
 
-  /** POST /api/documents/upload — upload a file to Azure Blob Storage */
+  /** POST /api/documents/upload — upload a file to Azure Blob Storage.
+   *  New API: fileInfo (JSON FilePath part) + file (multipart) + username (query param)
+   */
   uploadDocument(file: File, folderId: string, username: string): Observable<string> {
+    const fileInfo = { filePath: [username, folderId, file.name] };
     const form = new FormData();
+    form.append('fileInfo', new Blob([JSON.stringify(fileInfo)], { type: 'application/json' }));
     form.append('file', file);
-    form.append('folderId', folderId);
-    form.append('username', username);
-    return this.http.post(`${this.base}/api/documents/upload`, form, { responseType: 'text' });
+    const url = `${this.base}/api/documents/upload?username=${encodeURIComponent(username)}`;
+    return this.http.post(url, form, { responseType: 'text' });
   }
 
   /** GET /api/documents/{id}/links — get temporary SAS links for a document */

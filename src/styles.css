@@ -466,22 +466,25 @@ body {
   align-items: center;
   gap: 9px;
   width: 100%;
-  background: transparent;
-  border: 1px solid var(--border);
+  background: var(--accent);
+  border: none;
   border-radius: var(--radius-sm);
-  padding: 9px 12px;
-  font-size: 0.83rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  padding: 10px 14px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #fff;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 8px var(--accent-glow);
+  transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
 }
 .sidebar-footer-btn:hover {
-  background: var(--surface2);
-  color: var(--text);
-  border-color: var(--border2);
+  background: var(--accent-hover, color-mix(in srgb, var(--accent) 85%, #000));
+  box-shadow: 0 4px 14px var(--accent-glow);
+  transform: translateY(-1px);
 }
-.sidebar-footer-btn svg { flex-shrink: 0; }
+.sidebar-footer-btn:active { transform: translateY(0); }
+.sidebar-footer-btn svg { flex-shrink: 0; opacity: 0.9; }
 
 .sidebar-badge {
   margin-left: auto;
@@ -575,6 +578,13 @@ body {
   background: var(--accent);
   color: #fff;
   box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.profile-btn-letter {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  pointer-events: none;
 }
 
 .profile-dropdown {
@@ -1638,6 +1648,51 @@ body {
 /* -- Manage Documents modal (slightly wider) -- */
 .manage-modal {
   width: 760px;
+}
+
+/* -- Manage modal tabs -- */
+.manage-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.manage-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color 0.18s, border-color 0.18s;
+  border-radius: 0;
+}
+.manage-tab-btn:hover {
+  color: var(--text);
+}
+.manage-tab-active {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent) !important;
+  font-weight: 600;
+}
+.tab-badge {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 99px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.6;
 }
 
 
