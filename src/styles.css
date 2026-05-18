@@ -441,6 +441,32 @@ body {
   color: var(--text-dim);
 }
 
+/* Collapsible variant */
+.conv-section-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.conv-section-toggle:hover { background: var(--surface2); color: var(--text-muted); }
+
+.section-chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  transition: transform 0.2s ease;
+  transform: rotate(0deg);
+}
+.section-chevron-up {
+  transform: rotate(0deg);
+}
+.section-chevron:not(.section-chevron-up) {
+  transform: rotate(-90deg);
+}
+
 .conv-section-divider {
   height: 1px;
   background: var(--border);
@@ -645,6 +671,27 @@ body {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+/* ── Theme toggle ── */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  flex-shrink: 0;
+}
+.theme-toggle-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* ── Profile menu ── */
@@ -993,6 +1040,22 @@ body {
 @keyframes bounce {
   0%, 60%, 100% { transform: translateY(0);   opacity: 0.4; }
   30%            { transform: translateY(-7px); opacity: 1;   }
+}
+
+/* ── Streaming cursor ── */
+.stream-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--accent);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  animation: cursorBlink 0.7s step-end infinite;
+}
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
 }
 
 /* ════════════════════════════════════════════════════════════

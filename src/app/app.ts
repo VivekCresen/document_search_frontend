@@ -45,7 +45,7 @@ export class App implements AfterViewInit {
   private router = inject(Router);
   private api = inject(ApiService);
 
-  private queryCache = new Map<string, any>();
+  private queryCache = this.loadQueryCache();
 
   @ViewChild('messagesEnd') messagesEnd!: ElementRef;
   @ViewChild('promptTextarea') promptTextarea!: ElementRef<HTMLTextAreaElement>;
@@ -69,6 +69,29 @@ export class App implements AfterViewInit {
 
   private saveConversations() {
     localStorage.setItem(this.convsKey(), JSON.stringify(this.conversations()));
+  }
+
+  private queryCacheKey(): string {
+    return `ds_query_cache_${localStorage.getItem('ds_current_user') ?? 'guest'}`;
+  }
+
+  private loadQueryCache(): Map<string, any> {
+    try {
+      const raw = localStorage.getItem(this.queryCacheKey());
+      if (!raw) return new Map();
+      const entries: { key: string; value: any }[] = JSON.parse(raw);
+      return new Map(entries.map(e => [e.key, e.value]));
+    } catch { return new Map(); }
+  }
+
+  private saveQueryCache() {
+    const MAX_ENTRIES = 100;
+    const entries = Array.from(this.queryCache.entries())
+      .slice(-MAX_ENTRIES)
+      .map(([key, value]) => ({ key, value }));
+    try {
+      localStorage.setItem(this.queryCacheKey(), JSON.stringify(entries));
+    } catch { /* storage quota exceeded — skip silently */ }
   }
 
   private docsKey(): string {
@@ -106,6 +129,18 @@ export class App implements AfterViewInit {
 
   // ── Conv context menu ──
   openMenuConvId = signal<string | null>(null);
+
+  // ── Sidebar section collapse ──
+  pinnedCollapsed = signal(false);
+
+  // ── Theme ──
+  darkMode = signal(localStorage.getItem('ds_theme') === 'dark');
+
+  // ── Streaming ──
+  streamingText   = signal<string>('');
+  isStreaming     = signal<boolean>(false);
+  private streamInterval: any = null;
+
   messages = computed(() => this.activeConversation()?.messages ?? []);
 
   // ── Sidebar ──
@@ -140,6 +175,12 @@ export class App implements AfterViewInit {
   currentUser  = signal(localStorage.getItem('ds_current_user') ?? 'User');
   toggleProfile(event: MouseEvent) { event.stopPropagation(); this.profileOpen.update(v => !v); }
   closeProfile() { this.profileOpen.set(false); this.openMenuConvId.set(null); }
+
+  toggleTheme() {
+    this.darkMode.update(v => !v);
+    document.documentElement.setAttribute('data-theme', this.darkMode() ? 'dark' : '');
+    localStorage.setItem('ds_theme', this.darkMode() ? 'dark' : 'light');
+  }
 
   // ── Edit conversation title ──
   editingConvId = signal<string | null>(null);
@@ -209,6 +250,7 @@ export class App implements AfterViewInit {
   ];
 
   ngAfterViewInit() {
+    document.documentElement.setAttribute('data-theme', this.darkMode() ? 'dark' : '');
     const convs = this.conversations();
     if (convs.length > 0 && !this.activeConvId()) {
       this.activeConvId.set(convs[0].id);
@@ -334,13 +376,8 @@ export class App implements AfterViewInit {
         const answerText = cachedRes.responseData?.answer?.[0]?.Text
           ?? cachedRes.responseData?.standalone_query
           ?? 'No answer returned.';
-        const assistantMsg: Message = { role: 'assistant', content: answerText, timestamp: new Date() };
-        this.conversations.update(convs => convs.map(c =>
-          c.id === this.activeConvId() ? { ...c, messages: [...c.messages, assistantMsg] } : c
-        ));
-        this.saveConversations();
         this.loading.set(false);
-        setTimeout(() => this.scrollToBottom());
+        this.streamResponse(answerText, convId);
       }, 400);
       return;
     }
@@ -348,16 +385,12 @@ export class App implements AfterViewInit {
     this.api.query(payload).subscribe({
       next: (res) => {
         this.queryCache.set(cacheKey, res);
+        this.saveQueryCache();
         const answerText = res.responseData?.answer?.[0]?.Text
           ?? res.responseData?.standalone_query
           ?? 'No answer returned.';
-        const assistantMsg: Message = { role: 'assistant', content: answerText, timestamp: new Date() };
-        this.conversations.update(convs => convs.map(c =>
-          c.id === this.activeConvId() ? { ...c, messages: [...c.messages, assistantMsg] } : c
-        ));
-        this.saveConversations();
         this.loading.set(false);
-        setTimeout(() => this.scrollToBottom());
+        this.streamResponse(answerText, convId);
       },
       error: (err) => {
         let msg: string;
@@ -374,6 +407,31 @@ export class App implements AfterViewInit {
         setTimeout(() => this.scrollToBottom());
       }
     });
+  }
+
+  private streamResponse(fullText: string, convId: string) {
+    this.isStreaming.set(true);
+    this.streamingText.set('');
+    let i = 0;
+    const total = fullText.length;
+    const tickMs = 18;
+    const charsPerTick = Math.max(1, Math.ceil((total / Math.min(2400, Math.max(600, total * 10))) * tickMs));
+    this.streamInterval = setInterval(() => {
+      i = Math.min(i + charsPerTick, total);
+      this.streamingText.set(fullText.slice(0, i));
+      this.scrollToBottom();
+      if (i >= total) {
+        clearInterval(this.streamInterval);
+        this.streamingText.set('');
+        this.isStreaming.set(false);
+        const assistantMsg: Message = { role: 'assistant', content: fullText, timestamp: new Date() };
+        this.conversations.update(convs => convs.map(c =>
+          c.id === convId ? { ...c, messages: [...c.messages, assistantMsg] } : c
+        ));
+        this.saveConversations();
+        setTimeout(() => this.scrollToBottom());
+      }
+    }, tickMs);
   }
 
   onKeydown(event: KeyboardEvent) {
@@ -477,6 +535,13 @@ export class App implements AfterViewInit {
 
   removePending(id: string) {
     this.pendingAttachments.update(p => p.filter(f => f.id !== id));
+    const doc = this.allDocuments().find(d => d.id === id);
+    if (doc) {
+      if (doc.objectUrl) URL.revokeObjectURL(doc.objectUrl);
+      this.allDocuments.update(docs => docs.filter(d => d.id !== id));
+      this.saveDocuments();
+      if (this.viewingFile()?.id === id) this.viewingFile.set(null);
+    }
   }
 
   removeStagedFile(id: string) {

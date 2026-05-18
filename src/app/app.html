@@ -29,11 +29,13 @@
       }
 
       @if (pinnedConversations().length > 0) {
-        <div class="conv-section-label">
+        <button class="conv-section-label conv-section-toggle" (click)="pinnedCollapsed.update(v => !v); $event.stopPropagation()">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
           Pinned
-        </div>
-        @for (conv of pinnedConversations(); track conv.id) {
+          <svg class="section-chevron" [class.section-chevron-up]="!pinnedCollapsed()" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        @if (!pinnedCollapsed()) {
+          @for (conv of pinnedConversations(); track conv.id) {
           <div class="conv-wrap">
             <button
               class="conv-item conv-pinned"
@@ -79,11 +81,18 @@
             }
           </div>
         }
+          }
         @if (unpinnedConversations().length > 0) {
           <div class="conv-section-divider"></div>
         }
       }
 
+      @if (unpinnedConversations().length > 0) {
+        <div class="conv-section-label">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          All Chats
+        </div>
+      }
       @for (conv of unpinnedConversations(); track conv.id) {
         <div class="conv-wrap">
           <button
@@ -169,6 +178,13 @@
         }
       </div>
       <div class="header-right">
+        <button class="theme-toggle-btn" (click)="toggleTheme()" [title]="darkMode() ? 'Switch to light mode' : 'Switch to dark mode'">
+          @if (darkMode()) {
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          } @else {
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          }
+        </button>
         <div class="profile-menu-wrapper">
           <button class="profile-btn" (click)="toggleProfile($event)" title="Account">
             <span class="profile-btn-letter">{{ currentUser().charAt(0).toUpperCase() }}</span>
@@ -252,24 +268,24 @@
         </div>
       }
 
+      @if (isStreaming()) {
+        <div class="message-row">
+          <div class="avatar assistant-avatar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </div>
+          <div class="bubble-wrap">
+            <div class="message-bubble assistant-bubble">
+              <span class="bubble-text">{{ streamingText() }}<span class="stream-cursor"></span></span>
+            </div>
+          </div>
+        </div>
+      }
+
       <div #messagesEnd></div>
     </div>
 
     <!-- Input -->
     <div class="input-area">
-      @if (pendingAttachments().length > 0) {
-        <div class="pending-docs-bar">
-          @for (doc of pendingAttachments(); track doc.id) {
-            <span class="pending-doc-chip">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              <span class="pending-doc-name" [title]="doc.name">{{ doc.name }}</span>
-              <button class="pending-doc-remove" (click)="removePending(doc.id)" title="Detach">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
-              </button>
-            </span>
-          }
-        </div>
-      }
       <div class="input-box" [class.input-focused]="false">
         <textarea
           #promptTextarea
@@ -477,7 +493,6 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
             {{ docCount() }} total document{{ docCount() !== 1 ? 's' : '' }} across all sessions
           </span>
-          <button class="done-btn" (click)="closeManageModal()">Close</button>
         </div>
       }
 
@@ -552,15 +567,14 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             {{ stagedFiles().length }} file{{ stagedFiles().length !== 1 ? 's' : '' }} staged
           </span>
-          <div class="footer-actions">
-            @if (stagedFiles().length > 1 && stagedFiles().some(f => !f.saved)) {
+          @if (stagedFiles().length > 1 && stagedFiles().some(f => !f.saved)) {
+            <div class="footer-actions">
               <button class="save-all-btn" (click)="saveAllFiles()">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                 Save All
               </button>
-            }
-            <button class="done-btn" (click)="closeManageModal()">Done</button>
-          </div>
+            </div>
+          }
         </div>
       }
 
