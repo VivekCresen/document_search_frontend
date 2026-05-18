@@ -1,0 +1,49 @@
+<div class="modal-backdrop" (click)="closeModal()">
+  <div class="modal index-modal" (click)="$event.stopPropagation()">
+
+    <div class="modal-header index-modal-header">
+      <div class="modal-title">
+        <div class="modal-title-icon index-title-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h5"/></svg>
+        </div>
+        Manage Indexes
+        <div class="index-admin-note">Admin only</div>
+      </div>
+      <button class="modal-close" (click)="closeModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="index-modal-body">
+      <div class="index-section-grid">
+        @for (section of indexOperationSections; track section.title) {
+          <section class="index-section-card" [ngClass]="section.accent">
+            <button class="index-section-header index-section-toggle" (click)="toggleIndexSection(section.title)">
+              <span class="index-section-title">{{ section.title }}</span>
+              <svg class="index-section-chevron" [class.index-section-chevron-open]="expandedIndexSection() === section.title" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="index-section-content" [class.index-section-content-open]="expandedIndexSection() === section.title">
+              <div class="index-item-list">
+                @for (item of section.items; track item.number) {
+                  <div class="index-item-shell" [class.index-item-shell-open]="expandedIndexOperation() === item.number">
+                    <button class="index-item index-item-btn" (click)="selectIndexOperation(section.title, item.number, $event)">
+                      <span class="index-item-number">{{ item.number }}</span>
+                      <span class="index-item-text">{{ item.title }}</span>
+                      <svg class="index-item-chevron" [class.index-item-chevron-open]="expandedIndexOperation() === item.number" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="index-item-content" [class.index-item-content-open]="expandedIndexOperation() === item.number">
+                      <div class="index-item-detail">
+                        <p>{{ item.description }}</p>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </section>
+        }
+      </div>
+    </div>
+
+  </div>
+</div>

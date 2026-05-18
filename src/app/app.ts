@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ApiService } from './services/api.service';
+import { IndexManagementModal } from './index-management/index-management-modal';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -36,7 +37,7 @@ export interface ManagedFile {
 
 @Component({
   selector: 'app-chat',
-  imports: [FormsModule, CommonModule],
+  imports: [FormsModule, CommonModule, IndexManagementModal],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -173,6 +174,7 @@ export class App implements AfterViewInit {
   // ── Profile dropdown ──
   profileOpen = signal(false);
   currentUser  = signal(localStorage.getItem('ds_current_user') ?? 'User');
+  isAdmin      = signal(localStorage.getItem('ds_is_admin') === 'true');
   toggleProfile(event: MouseEvent) { event.stopPropagation(); this.profileOpen.update(v => !v); }
   closeProfile() { this.profileOpen.set(false); this.openMenuConvId.set(null); }
 
@@ -228,6 +230,7 @@ export class App implements AfterViewInit {
   // ── File manager ──
   showUploadModal    = signal(false);
   showManageModal    = signal(false);
+  showManageIndexesModal = signal(false);
   stagedFiles        = signal<ManagedFile[]>([]);
   allDocuments       = signal<ManagedFile[]>(this.loadDocuments());
   pendingAttachments = signal<{ id: string; name: string }[]>([]);
@@ -236,7 +239,7 @@ export class App implements AfterViewInit {
   docCount           = computed(() => this.allDocuments().length);
   manageTab          = signal<'upload' | 'documents'>('documents');
 
-  // ── Delete confirmations ──
+  // -- Delete confirmations --
   deleteConfirmId    = signal<string | null>(null);   // for conversations
   deleteDocConfirmId = signal<string | null>(null);   // for documents
 
@@ -263,6 +266,7 @@ export class App implements AfterViewInit {
     localStorage.removeItem('ds_token');
     localStorage.removeItem('ds_user_id');
     localStorage.removeItem('ds_current_user');
+    localStorage.removeItem('ds_is_admin');
     this.router.navigate(['/login']);
   }
 
@@ -460,8 +464,10 @@ export class App implements AfterViewInit {
   // ── Upload Modal ──
   openModal()        { this.showUploadModal.set(true); }
   closeModal()       { this.showUploadModal.set(false); }
-  openManageModal()  { this.showManageModal.set(true); }
+  openManageModal()  { this.showManageIndexesModal.set(false); this.showManageModal.set(true); }
   closeManageModal() { this.showManageModal.set(false); this.manageTab.set('documents'); }
+  openManageIndexesModal()  { this.showManageModal.set(false); this.showManageIndexesModal.set(true); }
+  closeManageIndexesModal() { this.showManageIndexesModal.set(false); }
 
   onDragOver(event: DragEvent) { event.preventDefault(); this.isDragging.set(true); }
   onDragLeave() { this.isDragging.set(false); }
