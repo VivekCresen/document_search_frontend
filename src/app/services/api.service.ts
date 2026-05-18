@@ -106,6 +106,52 @@ export interface SchemaRefreshResponse {
 }
 
 // ─────────────────────────────────────────────
+//  Error response  (matches backend ErrorResponse DTO)
+// ─────────────────────────────────────────────
+
+export interface ErrorResponse {
+  status: number;
+  message: string;
+  error: string;
+  timestamp: string;
+  path: string;
+}
+
+// ─────────────────────────────────────────────
+//  App info  →  GET /  |  /health  |  /metrics
+// ─────────────────────────────────────────────
+
+export interface AppInfoResponse {
+  name: string;
+  version: string;
+  features: string[];
+  endpoints: Record<string, string>;
+}
+
+export interface HealthResponse {
+  status: string;          // 'healthy' | 'unhealthy'
+  timestamp: string;
+  db_pool_status: string;
+  worker_pid: number;
+}
+
+export interface MetricsResponse {
+  timestamp: string;
+  config: {
+    request_timeout_seconds: number;
+    conversation_cache_size: number;
+    conversation_timeout_seconds: number;
+  };
+  current: {
+    active_conversations: number;
+    expired_conversations: number;
+    conversation_cache_size: number;
+    conversation_timeout_seconds: number;
+    request_count: number;
+  };
+}
+
+// ─────────────────────────────────────────────
 //  Permissions  →  /permissions/*
 // ─────────────────────────────────────────────
 
@@ -232,6 +278,23 @@ export class ApiService {
   /** POST /permissions/clear-cache — clear permission cache for current user */
   clearPermissionCache(): Observable<Record<string, unknown>> {
     return this.http.post<Record<string, unknown>>(`${this.base}/permissions/clear-cache`, null);
+  }
+
+  // ── App Info ─────────────────────────────────
+
+  /** GET / — service name, version and endpoint map */
+  getAppInfo(): Observable<AppInfoResponse> {
+    return this.http.get<AppInfoResponse>(`${this.base}/`);
+  }
+
+  /** GET /health — liveness check (requires auth) */
+  getHealth(): Observable<HealthResponse> {
+    return this.http.get<HealthResponse>(`${this.base}/health`);
+  }
+
+  /** GET /metrics — workflow stats and config (requires auth) */
+  getMetrics(): Observable<MetricsResponse> {
+    return this.http.get<MetricsResponse>(`${this.base}/metrics`);
   }
 
   // ── Schema ───────────────────────────────────

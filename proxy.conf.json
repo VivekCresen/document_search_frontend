@@ -13,5 +13,15 @@
     "target": "http://localhost:8085",
     "secure": false,
     "changeOrigin": true
+  },
+  "/health": {
+    "target": "http://localhost:8085",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/metrics": {
+    "target": "http://localhost:8085",
+    "secure": false,
+    "changeOrigin": true
   }
 }
