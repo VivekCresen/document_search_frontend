@@ -145,6 +145,13 @@ export class App implements AfterViewInit {
 
   // ── Conversations ──
   newChat() {
+    // If there is already an empty session, just activate it — don't stack empties
+    const empty = this.conversations().find(c => c.messages.length === 0);
+    if (empty) {
+      this.activeConvId.set(empty.id);
+      this.prompt.set('');
+      return;
+    }
     const id = crypto.randomUUID();
     const conv: Conversation = {
       id,
@@ -159,6 +166,29 @@ export class App implements AfterViewInit {
 
   selectConversation(id: string) {
     this.activeConvId.set(id);
+  }
+
+  // ── Delete confirmation ──
+  deleteConfirmId = signal<string | null>(null);
+
+  requestDelete(id: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.deleteConfirmId.set(id);
+  }
+
+  confirmDelete() {
+    const id = this.deleteConfirmId();
+    if (!id) return;
+    this.deleteConfirmId.set(null);
+    this.conversations.update(c => c.filter(x => x.id !== id));
+    if (this.activeConvId() === id) {
+      const remaining = this.conversations();
+      this.activeConvId.set(remaining.length ? remaining[0].id : null);
+    }
+  }
+
+  cancelDelete() {
+    this.deleteConfirmId.set(null);
   }
 
   deleteConversation(id: string, event: MouseEvent) {
@@ -209,7 +239,7 @@ export class App implements AfterViewInit {
     setTimeout(() => this.scrollToBottom());
 
     const currentUser = localStorage.getItem('ds_current_user') ?? 'anonymous';
-    const userId = parseInt(localStorage.getItem('ds_user_id') ?? '1', 10);
+    const userId = localStorage.getItem('ds_user_id') ?? undefined;  // UUID string from AuthResponse.id
     const convId = this.activeConvId()!;
     let questionIndex = this.messages().length;
 
@@ -247,9 +277,19 @@ export class App implements AfterViewInit {
         setTimeout(() => this.scrollToBottom());
       },
       error: (err) => {
+        let msg: string;
+        if (err.status === 401) {
+          msg = 'Session expired. Redirecting to login…';
+        } else if (err.status === 403) {
+          msg = 'Access denied. You may not have permission for this action.';
+        } else if (err.status === 0) {
+          msg = 'Cannot reach the backend. Is it running on port 8085?';
+        } else {
+          msg = err.error?.message ?? err.message ?? 'Unexpected error. Please try again.';
+        }
         const errorMsg: Message = {
           role: 'assistant',
-          content: `Error: ${err.status === 0 ? 'Cannot reach the backend. Is it running on port 8085?' : err.message}`,
+          content: `Error: ${msg}`,
           timestamp: new Date()
         };
         this.conversations.update(convs => convs.map(c =>

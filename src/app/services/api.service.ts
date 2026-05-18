@@ -1,9 +1,44 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-// ── Request / Response shapes matching the Spring AI backend ──
+// ─────────────────────────────────────────────
+//  Shared / utility
+// ─────────────────────────────────────────────
+
+/** Matches backend FilePath domain object */
+export interface FilePath {
+  filePath: string[];
+}
+
+// ─────────────────────────────────────────────
+//  Auth  →  POST /api/auth/register|login
+// ─────────────────────────────────────────────
+
+export interface RegisterRequest {
+  userName: string;
+  fullName: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginRequest {
+  userNameOrEmail: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  token?: string;
+  id?: string;        // UUID stored as string
+  userName?: string;
+  email?: string;
+  message?: string;
+}
+
+// ─────────────────────────────────────────────
+//  Query  →  POST /query
+// ─────────────────────────────────────────────
 
 export interface QueryRequest {
   metadata: { serviceReferenceId?: string };
@@ -16,7 +51,7 @@ export interface QueryRequest {
     conversation_id?: string;
     product_name?: string;
     profile?: string;
-    user_id?: number;
+    user_id?: string;   // UUID — backend uses java.util.UUID
   };
 }
 
@@ -37,12 +72,16 @@ export interface QueryResponse {
     conversation_id: string;
     product_name: string;
     profile: string;
-    user_id: number;
+    user_id: string;          // UUID
     response_timeStamp: string;
     standalone_query: string;
     conversation_context: string;
   };
 }
+
+// ─────────────────────────────────────────────
+//  Documents  →  /api/documents/*
+// ─────────────────────────────────────────────
 
 export interface DocumentLinkResponse {
   documentId: string;
@@ -51,32 +90,47 @@ export interface DocumentLinkResponse {
   viewLink: string;
 }
 
-// ── Auth ──
-export interface RegisterRequest {
-  userName: string;
-  fullName: string;
-  email: string;
-  password: string;
+// ─────────────────────────────────────────────
+//  Schema  →  /api/v1/schema/*
+// ─────────────────────────────────────────────
+
+export interface ActiveSchemasResponse {
+  views: string[];
+  descriptions: Record<string, string>;
+  routing_metadata: Record<string, unknown>;
 }
 
-export interface LoginRequest {
-  userNameOrEmail: string;
-  password: string;
+export interface SchemaRefreshResponse {
+  status: string;
+  message: string;
 }
 
-export interface AuthResponse {
-  token?: string;
-  id?: string;
-  userName?: string;
-  email?: string;
-  message?: string;
+// ─────────────────────────────────────────────
+//  Permissions  →  /permissions/*
+// ─────────────────────────────────────────────
+
+export interface PermissionCheckRequest {
+  folder_ids: string[];
 }
+
+export interface PermissionCheckResponse {
+  username: string;
+  permissions: Record<string, boolean>;
+  restricted_count: number;
+  accessible_count: number;
+}
+
+// ─────────────────────────────────────────────
+//  Service
+// ─────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly base = '';
 
   constructor(private http: HttpClient) {}
+
+  // ── Auth ────────────────────────────────────
 
   /** POST /api/auth/register */
   register(payload: RegisterRequest): Observable<AuthResponse> {
@@ -88,16 +142,22 @@ export class ApiService {
     return this.http.post<AuthResponse>(`${this.base}/api/auth/login`, payload);
   }
 
+  // ── Query ────────────────────────────────────
+
   /** POST /query — ask the AI a question */
   query(payload: QueryRequest): Observable<QueryResponse> {
     return this.http.post<QueryResponse>(`${this.base}/query`, payload);
   }
 
-  /** POST /api/documents/upload — upload a file to Azure Blob Storage.
-   *  New API: fileInfo (JSON FilePath part) + file (multipart) + username (query param)
+  // ── Documents ────────────────────────────────
+
+  /**
+   * POST /api/documents/upload
+   * Sends fileInfo as a JSON multipart part + the file + username query param.
+   * filePath array → [username, folderId, filename]
    */
   uploadDocument(file: File, folderId: string, username: string): Observable<string> {
-    const fileInfo = { filePath: [username, folderId, file.name] };
+    const fileInfo: FilePath = { filePath: [username, folderId, file.name] };
     const form = new FormData();
     form.append('fileInfo', new Blob([JSON.stringify(fileInfo)], { type: 'application/json' }));
     form.append('file', file);
@@ -105,18 +165,85 @@ export class ApiService {
     return this.http.post(url, form, { responseType: 'text' });
   }
 
-  /** GET /api/documents/{id}/links — get temporary SAS links for a document */
-  getDocumentLinks(documentId: string): Observable<DocumentLinkResponse> {
-    return this.http.get<DocumentLinkResponse>(
-      `${this.base}/api/documents/${documentId}/links`
-    );
-  }
-
-  /** GET /api/documents/download/{id} — download a document as a Blob */
+  /** GET /api/documents/download/{documentId} — download via Spring Resource */
   downloadDocument(documentId: string): Observable<Blob> {
     return this.http.get(
       `${this.base}/api/documents/download/${documentId}`,
       { responseType: 'blob' }
     );
   }
+
+  /** GET /api/documents/download-by-document-id/{documentId} — download byte[] by DB id */
+  downloadByDocumentId(documentId: string): Observable<Blob> {
+    return this.http.get(
+      `${this.base}/api/documents/download-by-document-id/${documentId}`,
+      { responseType: 'blob' }
+    );
+  }
+
+  /** GET /api/documents/download-by-path?path=... — download byte[] by full blob path */
+  downloadByPath(blobPath: string): Observable<Blob> {
+    return this.http.get(
+      `${this.base}/api/documents/download-by-path?path=${encodeURIComponent(blobPath)}`,
+      { responseType: 'blob' }
+    );
+  }
+
+  /** POST /api/documents/download-file — download byte[] by FilePath JSON body */
+  downloadFile(filePath: string[]): Observable<Blob> {
+    return this.http.post(
+      `${this.base}/api/documents/download-file`,
+      { filePath } satisfies FilePath,
+      { responseType: 'blob' }
+    );
+  }
+
+  /** GET /api/documents/{documentId}/links — get temporary SAS view/download links */
+  getDocumentLinks(documentId: string): Observable<DocumentLinkResponse> {
+    return this.http.get<DocumentLinkResponse>(
+      `${this.base}/api/documents/${documentId}/links`
+    );
+  }
+
+  /** GET /api/documents/health */
+  documentHealth(): Observable<string> {
+    return this.http.get(`${this.base}/api/documents/health`, { responseType: 'text' });
+  }
+
+  /** POST /api/documents/sync-from-azure — trigger manual Azure → DB sync */
+  syncFromAzure(): Observable<string> {
+    return this.http.post(`${this.base}/api/documents/sync-from-azure`, null, { responseType: 'text' });
+  }
+
+  // ── Permissions ──────────────────────────────
+  // X-Username / X-User-Email headers are attached automatically by authInterceptor.
+
+  /** POST /permissions/check — check access for a list of folder IDs */
+  checkPermissions(folderIds: string[]): Observable<PermissionCheckResponse> {
+    const body: PermissionCheckRequest = { folder_ids: folderIds };
+    return this.http.post<PermissionCheckResponse>(`${this.base}/permissions/check`, body);
+  }
+
+  /** GET /permissions/my-access — get current user's full access map */
+  getMyAccess(): Observable<Record<string, unknown>> {
+    return this.http.get<Record<string, unknown>>(`${this.base}/permissions/my-access`);
+  }
+
+  /** POST /permissions/clear-cache — clear permission cache for current user */
+  clearPermissionCache(): Observable<Record<string, unknown>> {
+    return this.http.post<Record<string, unknown>>(`${this.base}/permissions/clear-cache`, null);
+  }
+
+  // ── Schema ───────────────────────────────────
+
+  /** GET /api/v1/schema/active — get active views, descriptions and routing metadata */
+  getActiveSchemas(): Observable<ActiveSchemasResponse> {
+    return this.http.get<ActiveSchemasResponse>(`${this.base}/api/v1/schema/active`);
+  }
+
+  /** POST /api/v1/schema/refresh — refresh the schema registry */
+  refreshSchemas(): Observable<SchemaRefreshResponse> {
+    return this.http.post<SchemaRefreshResponse>(`${this.base}/api/v1/schema/refresh`, null);
+  }
 }
+
