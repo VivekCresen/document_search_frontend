@@ -19,6 +19,7 @@ interface Conversation {
   title: string;
   messages: Message[];
   createdAt: Date;
+  pinned?: boolean;
 }
 
 export interface ManagedFile {
@@ -98,6 +99,13 @@ export class App implements AfterViewInit {
   activeConversation = computed(() =>
     this.conversations().find(c => c.id === this.activeConvId()) ?? null
   );
+
+  pinnedConversations   = computed(() => this.conversations().filter(c => c.pinned));
+  unpinnedConversations = computed(() => this.conversations().filter(c => !c.pinned));
+  pinnedCount           = computed(() => this.conversations().filter(c => c.pinned).length);
+
+  // ── Conv context menu ──
+  openMenuConvId = signal<string | null>(null);
   messages = computed(() => this.activeConversation()?.messages ?? []);
 
   // ── Sidebar ──
@@ -131,7 +139,7 @@ export class App implements AfterViewInit {
   profileOpen = signal(false);
   currentUser  = signal(localStorage.getItem('ds_current_user') ?? 'User');
   toggleProfile(event: MouseEvent) { event.stopPropagation(); this.profileOpen.update(v => !v); }
-  closeProfile() { this.profileOpen.set(false); }
+  closeProfile() { this.profileOpen.set(false); this.openMenuConvId.set(null); }
 
   // ── Edit conversation title ──
   editingConvId = signal<string | null>(null);
@@ -153,6 +161,23 @@ export class App implements AfterViewInit {
   }
 
   cancelEdit() { this.editingConvId.set(null); }
+
+  openConvMenu(id: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.openMenuConvId.update(v => v === id ? null : id);
+  }
+
+  closeConvMenu() { this.openMenuConvId.set(null); }
+
+  togglePin(id: string, event: MouseEvent) {
+    event.stopPropagation();
+    const conv = this.conversations().find(c => c.id === id);
+    if (!conv) return;
+    if (!conv.pinned && this.pinnedCount() >= 3) return;
+    this.conversations.update(cs => cs.map(c => c.id === id ? { ...c, pinned: !c.pinned } : c));
+    this.saveConversations();
+    this.closeConvMenu();
+  }
 
   onEditKeydown(event: KeyboardEvent, id: string) {
     if (event.key === 'Enter')  { event.preventDefault(); this.commitEdit(id); }

@@ -27,36 +27,113 @@
           <span>Click + to start</span>
         </div>
       }
-      @for (conv of conversations(); track conv.id) {
-        <button
-          class="conv-item"
-          [class.conv-active]="conv.id === activeConvId()"
-          (click)="selectConversation(conv.id)"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
 
-          @if (editingConvId() === conv.id) {
-            <input
-              class="conv-edit-input"
-              [value]="editingTitle()"
-              (input)="editingTitle.set($any($event.target).value)"
-              (keydown)="onEditKeydown($event, conv.id)"
-              (blur)="commitEdit(conv.id)"
-              (click)="$event.stopPropagation()"
-              autofocus />
-          } @else {
-            <span class="conv-title">{{ conv.title }}</span>
-          }
+      @if (pinnedConversations().length > 0) {
+        <div class="conv-section-label">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+          Pinned
+        </div>
+        @for (conv of pinnedConversations(); track conv.id) {
+          <div class="conv-wrap">
+            <button
+              class="conv-item conv-pinned"
+              [class.conv-active]="conv.id === activeConvId()"
+              (click)="selectConversation(conv.id)"
+            >
+              <svg class="pin-icon" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
 
-          <div class="conv-actions">
-            <button class="conv-action-btn conv-edit" (click)="startEdit(conv.id, conv.title, $event)" title="Rename">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              @if (editingConvId() === conv.id) {
+                <input
+                  class="conv-edit-input"
+                  [value]="editingTitle()"
+                  (input)="editingTitle.set($any($event.target).value)"
+                  (keydown)="onEditKeydown($event, conv.id)"
+                  (blur)="commitEdit(conv.id)"
+                  (click)="$event.stopPropagation()"
+                  autofocus />
+              } @else {
+                <span class="conv-title">{{ conv.title }}</span>
+              }
+
+              <div class="conv-actions">
+                <button class="conv-menu-btn" (click)="openConvMenu(conv.id, $event)" title="More options">
+                  <span></span><span></span><span></span>
+                </button>
+              </div>
             </button>
-            <button class="conv-action-btn conv-delete" (click)="requestDelete(conv.id, $event)" title="Delete">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
-            </button>
+            @if (openMenuConvId() === conv.id) {
+              <div class="conv-ctx-menu" (click)="$event.stopPropagation()">
+                <button class="ctx-menu-item" (click)="togglePin(conv.id, $event)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                  Unpin chat
+                </button>
+                <button class="ctx-menu-item" (click)="startEdit(conv.id, conv.title, $event)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Edit name
+                </button>
+                <button class="ctx-menu-item ctx-item-danger" (click)="requestDelete(conv.id, $event)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                  Delete chat
+                </button>
+              </div>
+            }
           </div>
-        </button>
+        }
+        @if (unpinnedConversations().length > 0) {
+          <div class="conv-section-divider"></div>
+        }
+      }
+
+      @for (conv of unpinnedConversations(); track conv.id) {
+        <div class="conv-wrap">
+          <button
+            class="conv-item"
+            [class.conv-active]="conv.id === activeConvId()"
+            (click)="selectConversation(conv.id)"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+
+            @if (editingConvId() === conv.id) {
+              <input
+                class="conv-edit-input"
+                [value]="editingTitle()"
+                (input)="editingTitle.set($any($event.target).value)"
+                (keydown)="onEditKeydown($event, conv.id)"
+                (blur)="commitEdit(conv.id)"
+                (click)="$event.stopPropagation()"
+                autofocus />
+            } @else {
+              <span class="conv-title">{{ conv.title }}</span>
+            }
+
+            <div class="conv-actions">
+              <button class="conv-menu-btn" (click)="openConvMenu(conv.id, $event)" title="More options">
+                <span></span><span></span><span></span>
+              </button>
+            </div>
+          </button>
+          @if (openMenuConvId() === conv.id) {
+            <div class="conv-ctx-menu" (click)="$event.stopPropagation()">
+              <button class="ctx-menu-item"
+                (click)="togglePin(conv.id, $event)"
+                [class.ctx-item-disabled]="pinnedCount() >= 3">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                Pin chat
+                @if (pinnedCount() >= 3) {
+                  <span class="ctx-limit-badge">Max 3</span>
+                }
+              </button>
+              <button class="ctx-menu-item" (click)="startEdit(conv.id, conv.title, $event)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit name
+              </button>
+              <button class="ctx-menu-item ctx-item-danger" (click)="requestDelete(conv.id, $event)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                Delete chat
+              </button>
+            </div>
+          }
+        </div>
       }
     </div>
 

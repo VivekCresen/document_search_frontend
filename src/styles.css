@@ -415,19 +415,54 @@ body {
   font-size: 0.82rem;
 }
 
+.conv-wrap {
+  position: relative;
+}
+
+.conv-pinned {
+  color: var(--accent) !important;
+}
+
+.pin-icon {
+  flex-shrink: 0;
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+.conv-section-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.conv-section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 5px 10px;
+}
+
 .conv-actions {
   display: none;
   align-items: center;
-  gap: 2px;
   flex-shrink: 0;
   margin-left: auto;
 }
-.conv-item:hover .conv-actions { display: flex; }
+.conv-item:hover .conv-actions,
+.conv-wrap:has(.conv-ctx-menu) .conv-actions { display: flex; }
 
-.conv-action-btn {
+/* 3-dot button */
+.conv-menu-btn {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 2.5px;
   width: 22px;
   height: 22px;
   background: none;
@@ -435,11 +470,65 @@ body {
   border-radius: 5px;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s, color 0.15s;
+  padding: 3px 7px;
+  transition: background 0.15s;
   color: var(--text-dim);
 }
-.conv-edit:hover  { background: var(--blue-soft);  color: var(--blue); }
-.conv-delete:hover { background: var(--red-soft);  color: var(--red); }
+.conv-menu-btn span {
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.conv-menu-btn:hover { background: var(--surface3); color: var(--text); }
+
+/* Context menu dropdown */
+.conv-ctx-menu {
+  position: absolute;
+  right: 4px;
+  top: calc(100% - 2px);
+  min-width: 160px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  z-index: 500;
+  overflow: hidden;
+  animation: dropIn 0.12s ease both;
+  padding: 3px;
+}
+
+.ctx-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+  font-family: inherit;
+}
+.ctx-menu-item:hover { background: var(--surface2); color: var(--text); }
+.ctx-item-danger:hover { background: var(--red-soft); color: var(--red); }
+.ctx-item-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+
+.ctx-limit-badge {
+  margin-left: auto;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--surface3);
+  color: var(--text-dim);
+  border-radius: 99px;
+  padding: 1px 6px;
+}
 
 .conv-edit-input {
   flex: 1;
@@ -521,6 +610,8 @@ body {
   flex-shrink: 0;
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(8px);
+  position: relative;
+  z-index: 200;
 }
 
 .header-left {
@@ -601,6 +692,8 @@ body {
   overflow: hidden;
   animation: dropIn 0.15s ease both;
 }
+
+
 @keyframes dropIn {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
