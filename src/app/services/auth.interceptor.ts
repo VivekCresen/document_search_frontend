@@ -12,8 +12,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const isValidJwt = !!rawToken && rawToken.startsWith('ey') && rawToken.split('.').length === 3;
 
   const headers: Record<string, string> = {};
-  if (isValidJwt)  headers['Authorization'] = `Bearer ${rawToken}`;
-  if (identity)    headers['X-Username']    = identity;
+  if (isValidJwt) {
+    headers['Authorization'] = `Bearer ${rawToken}`;
+  } else if (!req.url.includes('/api/auth/')) {
+    // Warn in dev when a protected request goes out with no token — helps catch missing login
+    console.warn(`[authInterceptor] No JWT token found for request: ${req.method} ${req.url}`);
+  }
+  if (identity)               headers['X-Username']    = identity;
   if (identity.includes('@')) headers['X-User-Email'] = identity;
 
   if (Object.keys(headers).length > 0) {
@@ -22,9 +27,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
-      // Only auto-logout on 401 (Unauthorized = session expired / invalid token).
-      // 403 (Forbidden) means authenticated but no permission — do NOT log out.
-      // Skip the auth endpoints themselves to avoid redirect loops.
+      // 401 Unauthorized = no token / expired token → redirect to login and clear storage.
+      // 403 Forbidden    = authenticated but lacks permission → surface the error, don't log out.
+      // Skip /api/auth/ endpoints to avoid redirect loops on login/register failures.
       if (err.status === 401 && !req.url.includes('/api/auth/')) {
         localStorage.removeItem('ds_token');
         localStorage.removeItem('ds_current_user');

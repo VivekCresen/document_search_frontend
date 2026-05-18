@@ -44,6 +44,9 @@ export class App implements AfterViewInit {
   private router = inject(Router);
   private api = inject(ApiService);
 
+  // ── Query Cache Map ──
+  private queryCache = new Map<string, any>();
+
   @ViewChild('messagesEnd') messagesEnd!: ElementRef;
   @ViewChild('promptTextarea') promptTextarea!: ElementRef<HTMLTextAreaElement>;
 
@@ -140,6 +143,8 @@ export class App implements AfterViewInit {
 
   logout() {
     localStorage.removeItem('ds_current_user');
+    localStorage.removeItem('ds_token');
+    localStorage.removeItem('ds_user_id');
     this.router.navigate(['/login']);
   }
 
@@ -258,8 +263,35 @@ export class App implements AfterViewInit {
       }
     };
 
+    const cacheKey = `${convId}:${text.toLowerCase()}`;
+    if (this.queryCache.has(cacheKey)) {
+      // Return response from frontend cache to avoid duplicate backend calls
+      setTimeout(() => {
+        const cachedRes = this.queryCache.get(cacheKey);
+        const answerText = cachedRes.responseData?.answer?.[0]?.Text
+          ?? cachedRes.responseData?.standalone_query
+          ?? 'No answer returned.';
+        const assistantMsg: Message = {
+          role: 'assistant',
+          content: answerText,
+          timestamp: new Date()
+        };
+        this.conversations.update(convs => convs.map(c =>
+          c.id === this.activeConvId()
+            ? { ...c, messages: [...c.messages, assistantMsg] }
+            : c
+        ));
+        this.loading.set(false);
+        setTimeout(() => this.scrollToBottom());
+      }, 400); // Small realistic delay for micro-interactions/UI polish
+      return;
+    }
+
     this.api.query(payload).subscribe({
       next: (res) => {
+        // Cache the successful response
+        this.queryCache.set(cacheKey, res);
+
         const answerText = res.responseData?.answer?.[0]?.Text
           ?? res.responseData?.standalone_query
           ?? 'No answer returned.';

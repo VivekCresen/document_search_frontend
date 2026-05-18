@@ -820,11 +820,13 @@ body {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  max-width: 70%;
 }
 .user-row .bubble-wrap { align-items: flex-end; }
 
 .message-bubble {
-  max-width: 70%;
+  width: fit-content;
+  max-width: 100%;
   padding: 12px 16px;
   border-radius: var(--radius);
   font-size: 0.9rem;
