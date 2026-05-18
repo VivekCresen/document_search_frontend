@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -197,11 +197,7 @@ export class ApiService {
 
   // ── Documents ────────────────────────────────
 
-  /**
-   * POST /api/documents/upload
-   * Sends fileInfo as a JSON multipart part + the file + username query param.
-   * filePath array → [username, folderId, filename]
-   */
+  /** POST /api/documents/upload — filePath: [username, folderId, filename] */
   uploadDocument(file: File, folderId: string, username: string): Observable<string> {
     const fileInfo: FilePath = { filePath: [username, folderId, file.name] };
     const form = new FormData();

@@ -30,11 +30,11 @@ export interface ManagedFile {
   saved: boolean;
   objectUrl: string;
   safeUrl: SafeResourceUrl;
-  sessionTitle?: string; // which conversation this was saved under
+  sessionTitle?: string;
 }
 
 @Component({
-  selector: 'app-root',
+  selector: 'app-chat',
   imports: [FormsModule, CommonModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
@@ -44,14 +44,45 @@ export class App implements AfterViewInit {
   private router = inject(Router);
   private api = inject(ApiService);
 
-  // ── Query Cache Map ──
   private queryCache = new Map<string, any>();
 
   @ViewChild('messagesEnd') messagesEnd!: ElementRef;
   @ViewChild('promptTextarea') promptTextarea!: ElementRef<HTMLTextAreaElement>;
 
+  // ── Persistence helpers ──
+  private loadConversations(): Conversation[] {
+    try {
+      const raw = localStorage.getItem('ds_conversations');
+      if (!raw) return [];
+      return (JSON.parse(raw) as any[]).map(c => ({
+        ...c,
+        createdAt: new Date(c.createdAt),
+        messages: c.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
+      }));
+    } catch { return []; }
+  }
+
+  private saveConversations() {
+    localStorage.setItem('ds_conversations', JSON.stringify(this.conversations()));
+  }
+
+  private loadDocuments(): ManagedFile[] {
+    try {
+      const raw = localStorage.getItem('ds_documents');
+      if (!raw) return [];
+      return (JSON.parse(raw) as any[]).map(d => ({
+        ...d, file: null as any, objectUrl: '', safeUrl: '' as any
+      }));
+    } catch { return []; }
+  }
+
+  private saveDocuments() {
+    const serializable = this.allDocuments().map(({ file, objectUrl, safeUrl, ...rest }) => rest);
+    localStorage.setItem('ds_documents', JSON.stringify(serializable));
+  }
+
   // ── Chat state ──
-  conversations = signal<Conversation[]>([]);
+  conversations = signal<Conversation[]>(this.loadConversations());
   activeConvId = signal<string | null>(null);
   prompt = signal('');
   loading = signal(false);
@@ -63,7 +94,7 @@ export class App implements AfterViewInit {
 
   // ── Sidebar ──
   sidebarCollapsed = signal(false);
-  sidebarWidth     = signal(252); // px, matches --sidebar-w default
+  sidebarWidth     = signal(252);
   private _resizing = false;
   private _resizeStartX = 0;
   private _resizeStartW = 0;
@@ -108,6 +139,7 @@ export class App implements AfterViewInit {
     const t = this.editingTitle().trim();
     if (t) {
       this.conversations.update(cs => cs.map(c => c.id === id ? { ...c, title: t } : c));
+      this.saveConversations();
     }
     this.editingConvId.set(null);
   }
@@ -120,15 +152,19 @@ export class App implements AfterViewInit {
   }
 
   // ── File manager ──
-  showUploadModal = signal(false); // Upload Documents modal
-  showManageModal  = signal(false); // Manage All Documents modal
-  stagedFiles      = signal<ManagedFile[]>([]); // picked but not yet saved
-  allDocuments     = signal<ManagedFile[]>([]); // all saved docs (across sessions)
-  pendingAttachments = signal<{ id: string; name: string }[]>([]); // queued for next send
-  viewingFile      = signal<ManagedFile | null>(null);
-  isDragging       = signal(false);
-  docCount         = computed(() => this.allDocuments().length);
-  manageTab        = signal<'upload' | 'documents'>('documents');
+  showUploadModal    = signal(false);
+  showManageModal    = signal(false);
+  stagedFiles        = signal<ManagedFile[]>([]);
+  allDocuments       = signal<ManagedFile[]>(this.loadDocuments());
+  pendingAttachments = signal<{ id: string; name: string }[]>([]);
+  viewingFile        = signal<ManagedFile | null>(null);
+  isDragging         = signal(false);
+  docCount           = computed(() => this.allDocuments().length);
+  manageTab          = signal<'upload' | 'documents'>('documents');
+
+  // ── Delete confirmations ──
+  deleteConfirmId    = signal<string | null>(null);   // for conversations
+  deleteDocConfirmId = signal<string | null>(null);   // for documents
 
   // ── Suggestion chips ──
   readonly chips = [
@@ -139,7 +175,12 @@ export class App implements AfterViewInit {
     'Extract all dates and deadlines',
   ];
 
-  ngAfterViewInit() { }
+  ngAfterViewInit() {
+    const convs = this.conversations();
+    if (convs.length > 0 && !this.activeConvId()) {
+      this.activeConvId.set(convs[0].id);
+    }
+  }
 
   logout() {
     localStorage.removeItem('ds_current_user');
@@ -150,7 +191,6 @@ export class App implements AfterViewInit {
 
   // ── Conversations ──
   newChat() {
-    // If there is already an empty session, just activate it — don't stack empties
     const empty = this.conversations().find(c => c.messages.length === 0);
     if (empty) {
       this.activeConvId.set(empty.id);
@@ -158,24 +198,16 @@ export class App implements AfterViewInit {
       return;
     }
     const id = crypto.randomUUID();
-    const conv: Conversation = {
-      id,
-      title: 'New Chat',
-      messages: [],
-      createdAt: new Date()
-    };
+    const conv: Conversation = { id, title: 'New Chat', messages: [], createdAt: new Date() };
     this.conversations.update(c => [conv, ...c]);
+    this.saveConversations();
     this.activeConvId.set(id);
     this.prompt.set('');
   }
 
-  selectConversation(id: string) {
-    this.activeConvId.set(id);
-  }
+  selectConversation(id: string) { this.activeConvId.set(id); }
 
-  // ── Delete confirmation ──
-  deleteConfirmId = signal<string | null>(null);
-
+  // ── Delete conversation confirmation ──
   requestDelete(id: string, event: MouseEvent) {
     event.stopPropagation();
     this.deleteConfirmId.set(id);
@@ -186,19 +218,19 @@ export class App implements AfterViewInit {
     if (!id) return;
     this.deleteConfirmId.set(null);
     this.conversations.update(c => c.filter(x => x.id !== id));
+    this.saveConversations();
     if (this.activeConvId() === id) {
       const remaining = this.conversations();
       this.activeConvId.set(remaining.length ? remaining[0].id : null);
     }
   }
 
-  cancelDelete() {
-    this.deleteConfirmId.set(null);
-  }
+  cancelDelete() { this.deleteConfirmId.set(null); }
 
   deleteConversation(id: string, event: MouseEvent) {
     event.stopPropagation();
     this.conversations.update(c => c.filter(x => x.id !== id));
+    this.saveConversations();
     if (this.activeConvId() === id) {
       const remaining = this.conversations();
       this.activeConvId.set(remaining.length ? remaining[0].id : null);
@@ -228,25 +260,22 @@ export class App implements AfterViewInit {
 
     this.conversations.update(convs => convs.map(c =>
       c.id === this.activeConvId()
-        ? {
-            ...c,
-            title: c.messages.length === 0 ? text.slice(0, 40) : c.title,
-            messages: [...c.messages, userMsg]
-          }
+        ? { ...c, title: c.messages.length === 0 ? text.slice(0, 40) : c.title, messages: [...c.messages, userMsg] }
         : c
     ));
+    this.saveConversations();
 
     this.prompt.set('');
-    this.pendingAttachments.set([]);  // clear pre-send chips
-    this.stagedFiles.set([]);         // clear upload modal — files already in allDocuments
+    this.pendingAttachments.set([]);
+    this.stagedFiles.set([]);
     this.resetTextareaHeight();
     this.loading.set(true);
     setTimeout(() => this.scrollToBottom());
 
     const currentUser = localStorage.getItem('ds_current_user') ?? 'anonymous';
-    const userId = localStorage.getItem('ds_user_id') ?? undefined;  // UUID string from AuthResponse.id
+    const userId = localStorage.getItem('ds_user_id') ?? undefined;
     const convId = this.activeConvId()!;
-    let questionIndex = this.messages().length;
+    const questionIndex = this.messages().length;
 
     const payload = {
       metadata: { serviceReferenceId: crypto.randomUUID() },
@@ -265,70 +294,47 @@ export class App implements AfterViewInit {
 
     const cacheKey = `${convId}:${text.toLowerCase()}`;
     if (this.queryCache.has(cacheKey)) {
-      // Return response from frontend cache to avoid duplicate backend calls
       setTimeout(() => {
         const cachedRes = this.queryCache.get(cacheKey);
         const answerText = cachedRes.responseData?.answer?.[0]?.Text
           ?? cachedRes.responseData?.standalone_query
           ?? 'No answer returned.';
-        const assistantMsg: Message = {
-          role: 'assistant',
-          content: answerText,
-          timestamp: new Date()
-        };
+        const assistantMsg: Message = { role: 'assistant', content: answerText, timestamp: new Date() };
         this.conversations.update(convs => convs.map(c =>
-          c.id === this.activeConvId()
-            ? { ...c, messages: [...c.messages, assistantMsg] }
-            : c
+          c.id === this.activeConvId() ? { ...c, messages: [...c.messages, assistantMsg] } : c
         ));
+        this.saveConversations();
         this.loading.set(false);
         setTimeout(() => this.scrollToBottom());
-      }, 400); // Small realistic delay for micro-interactions/UI polish
+      }, 400);
       return;
     }
 
     this.api.query(payload).subscribe({
       next: (res) => {
-        // Cache the successful response
         this.queryCache.set(cacheKey, res);
-
         const answerText = res.responseData?.answer?.[0]?.Text
           ?? res.responseData?.standalone_query
           ?? 'No answer returned.';
-        const assistantMsg: Message = {
-          role: 'assistant',
-          content: answerText,
-          timestamp: new Date()
-        };
+        const assistantMsg: Message = { role: 'assistant', content: answerText, timestamp: new Date() };
         this.conversations.update(convs => convs.map(c =>
-          c.id === this.activeConvId()
-            ? { ...c, messages: [...c.messages, assistantMsg] }
-            : c
+          c.id === this.activeConvId() ? { ...c, messages: [...c.messages, assistantMsg] } : c
         ));
+        this.saveConversations();
         this.loading.set(false);
         setTimeout(() => this.scrollToBottom());
       },
       error: (err) => {
         let msg: string;
-        if (err.status === 401) {
-          msg = 'Session expired. Redirecting to login…';
-        } else if (err.status === 403) {
-          msg = 'Access denied. You may not have permission for this action.';
-        } else if (err.status === 0) {
-          msg = 'Cannot reach the backend. Is it running on port 8085?';
-        } else {
-          msg = err.error?.message ?? err.message ?? 'Unexpected error. Please try again.';
-        }
-        const errorMsg: Message = {
-          role: 'assistant',
-          content: `Error: ${msg}`,
-          timestamp: new Date()
-        };
+        if (err.status === 401)      msg = 'Session expired. Redirecting to login…';
+        else if (err.status === 403) msg = 'Access denied. You may not have permission for this action.';
+        else if (err.status === 0)   msg = 'Cannot reach the backend. Is it running on port 8085?';
+        else                         msg = err.error?.message ?? err.message ?? 'Unexpected error. Please try again.';
+        const errorMsg: Message = { role: 'assistant', content: `Error: ${msg}`, timestamp: new Date() };
         this.conversations.update(convs => convs.map(c =>
-          c.id === this.activeConvId()
-            ? { ...c, messages: [...c.messages, errorMsg] }
-            : c
+          c.id === this.activeConvId() ? { ...c, messages: [...c.messages, errorMsg] } : c
         ));
+        this.saveConversations();
         this.loading.set(false);
         setTimeout(() => this.scrollToBottom());
       }
@@ -336,10 +342,7 @@ export class App implements AfterViewInit {
   }
 
   onKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      this.send();
-    }
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); this.send(); }
   }
 
   onInput(event: Event) {
@@ -350,9 +353,7 @@ export class App implements AfterViewInit {
   }
 
   private resetTextareaHeight() {
-    if (this.promptTextarea?.nativeElement) {
-      this.promptTextarea.nativeElement.style.height = 'auto';
-    }
+    if (this.promptTextarea?.nativeElement) this.promptTextarea.nativeElement.style.height = 'auto';
   }
 
   private scrollToBottom() {
@@ -369,18 +370,13 @@ export class App implements AfterViewInit {
   openManageModal()  { this.showManageModal.set(true); }
   closeManageModal() { this.showManageModal.set(false); this.manageTab.set('documents'); }
 
-  onDragOver(event: DragEvent) {
-    event.preventDefault();
-    this.isDragging.set(true);
-  }
-
+  onDragOver(event: DragEvent) { event.preventDefault(); this.isDragging.set(true); }
   onDragLeave() { this.isDragging.set(false); }
 
   onDrop(event: DragEvent) {
     event.preventDefault();
     this.isDragging.set(false);
-    const files = Array.from(event.dataTransfer?.files ?? []);
-    this.addFiles(files);
+    this.addFiles(Array.from(event.dataTransfer?.files ?? []));
   }
 
   onModalFileSelected(event: Event) {
@@ -390,86 +386,83 @@ export class App implements AfterViewInit {
   }
 
   private addFiles(files: File[]) {
-    const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    const allowed = ['application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'text/plain', 'image/png', 'image/jpeg', 'image/gif', 'image/webp'];
     const newFiles: ManagedFile[] = files
       .filter(f => allowed.includes(f.type) || f.name.endsWith('.docx') || f.name.endsWith('.pdf'))
       .map(f => {
         const objectUrl = URL.createObjectURL(f);
         return {
-          id: crypto.randomUUID(),
-          file: f,
-          name: f.name,
-          size: this.formatSize(f.size),
-          type: f.type,
-          saved: false,
-          objectUrl,
-          safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(objectUrl)
+          id: crypto.randomUUID(), file: f, name: f.name,
+          size: this.formatSize(f.size), type: f.type, saved: false,
+          objectUrl, safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(objectUrl)
         };
       });
     this.stagedFiles.update(existing => [...existing, ...newFiles]);
   }
 
-  // Move one staged file into allDocuments (saved to DB) — keep visible in upload modal
+  // Save one staged file → move to allDocuments, remove from staged
   saveFile(id: string) {
     const f = this.stagedFiles().find(f => f.id === id);
-    if (!f || f.saved) return; // already saved
+    if (!f) return;
     const sessionTitle = this.activeConversation()?.title ?? 'General';
-    const saved = { ...f, saved: true, sessionTitle };
-    this.allDocuments.update(docs => [...docs, saved]);
-    this.stagedFiles.update(files => files.map(x => x.id === id ? { ...x, saved: true } : x));
+    this.allDocuments.update(docs => [...docs, { ...f, saved: true, sessionTitle }]);
+    this.stagedFiles.update(files => files.filter(x => x.id !== id));
     this.pendingAttachments.update(p => [...p, { id: f.id, name: f.name }]);
+    this.saveDocuments();
 
     const username = localStorage.getItem('ds_current_user') ?? 'anonymous';
     const folderId = this.activeConvId() ?? 'default';
     this.api.uploadDocument(f.file, folderId, username).subscribe({
-      next: () => { /* upload success — document already added to UI */ },
+      next: () => {},
       error: (err) => console.error('Upload failed for', f.name, err)
     });
   }
 
-  // Save every staged file at once — keep visible in upload modal
+  // Save all staged files → move all to allDocuments, clear staged
   saveAllFiles() {
     const sessionTitle = this.activeConversation()?.title ?? 'General';
-    const unsaved = this.stagedFiles().filter(f => !f.saved);
+    const unsaved = this.stagedFiles();
     if (unsaved.length === 0) return;
-    const toSave = unsaved.map(f => ({ ...f, saved: true, sessionTitle }));
-    this.allDocuments.update(docs => [...docs, ...toSave]);
-    this.stagedFiles.update(files => files.map(f => ({ ...f, saved: true })));
+    this.allDocuments.update(docs => [...docs, ...unsaved.map(f => ({ ...f, saved: true, sessionTitle }))]);
+    this.stagedFiles.set([]);
     this.pendingAttachments.update(p => [...p, ...unsaved.map(f => ({ id: f.id, name: f.name }))]);
+    this.saveDocuments();
 
     const username = localStorage.getItem('ds_current_user') ?? 'anonymous';
     const folderId = this.activeConvId() ?? 'default';
     unsaved.forEach(f => {
       this.api.uploadDocument(f.file, folderId, username).subscribe({
-        next: () => { /* upload success */ },
+        next: () => {},
         error: (err) => console.error('Upload failed for', f.name, err)
       });
     });
   }
 
-  // Remove a file from the pending chips without deleting it from allDocuments
   removePending(id: string) {
     this.pendingAttachments.update(p => p.filter(f => f.id !== id));
   }
 
-  // Remove a staged file — if already saved, also remove from allDocuments + pendingAttachments
   removeStagedFile(id: string) {
     const f = this.stagedFiles().find(f => f.id === id);
     if (!f) return;
-    URL.revokeObjectURL(f.objectUrl);
+    if (f.objectUrl) URL.revokeObjectURL(f.objectUrl);
     this.stagedFiles.update(files => files.filter(x => x.id !== id));
-    if (f.saved) {
-      this.allDocuments.update(docs => docs.filter(x => x.id !== id));
-      this.pendingAttachments.update(p => p.filter(x => x.id !== id));
-    }
   }
 
-  // Delete a saved document from allDocuments (calls DB delete in future)
-  deleteDocument(id: string) {
+  // ── Delete document confirmation ──
+  requestDeleteDocument(id: string) { this.deleteDocConfirmId.set(id); }
+  cancelDeleteDocument()            { this.deleteDocConfirmId.set(null); }
+
+  confirmDeleteDocument() {
+    const id = this.deleteDocConfirmId();
+    if (!id) return;
+    this.deleteDocConfirmId.set(null);
     const f = this.allDocuments().find(f => f.id === id);
-    if (f) URL.revokeObjectURL(f.objectUrl);
+    if (f?.objectUrl) URL.revokeObjectURL(f.objectUrl);
     this.allDocuments.update(docs => docs.filter(d => d.id !== id));
+    this.saveDocuments();
     if (this.viewingFile()?.id === id) this.viewingFile.set(null);
   }
 

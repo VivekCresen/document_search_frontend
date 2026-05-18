@@ -385,7 +385,7 @@
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                       Download
                     </button>
-                    <button class="fab del-fab" (click)="deleteDocument(f.id)" title="Delete from DB">
+                    <button class="fab del-fab" (click)="requestDeleteDocument(f.id)" title="Delete from DB">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
                       Delete
                     </button>
@@ -554,6 +554,28 @@
       <div class="confirm-actions">
         <button class="confirm-cancel-btn" (click)="cancelDelete()">Cancel</button>
         <button class="confirm-delete-btn" (click)="confirmDelete()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (deleteDocConfirmId()) {
+  <div class="modal-backdrop" (click)="cancelDeleteDocument()">
+    <div class="modal confirm-modal" (click)="$event.stopPropagation()">
+      <div class="confirm-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <h3 class="confirm-title">Delete this document?</h3>
+      <p class="confirm-body">
+        "{{ allDocuments().find(d => d.id === deleteDocConfirmId())?.name }}"
+        will be permanently removed.
+      </p>
+      <div class="confirm-actions">
+        <button class="confirm-cancel-btn" (click)="cancelDeleteDocument()">Cancel</button>
+        <button class="confirm-delete-btn" (click)="confirmDeleteDocument()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
           Delete
         </button>
