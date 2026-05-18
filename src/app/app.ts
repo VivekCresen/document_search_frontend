@@ -50,9 +50,13 @@ export class App implements AfterViewInit {
   @ViewChild('promptTextarea') promptTextarea!: ElementRef<HTMLTextAreaElement>;
 
   // ── Persistence helpers ──
+  private convsKey(): string {
+    return `ds_conversations_${localStorage.getItem('ds_current_user') ?? 'guest'}`;
+  }
+
   private loadConversations(): Conversation[] {
     try {
-      const raw = localStorage.getItem('ds_conversations');
+      const raw = localStorage.getItem(this.convsKey());
       if (!raw) return [];
       return (JSON.parse(raw) as any[]).map(c => ({
         ...c,
@@ -63,12 +67,16 @@ export class App implements AfterViewInit {
   }
 
   private saveConversations() {
-    localStorage.setItem('ds_conversations', JSON.stringify(this.conversations()));
+    localStorage.setItem(this.convsKey(), JSON.stringify(this.conversations()));
+  }
+
+  private docsKey(): string {
+    return `ds_documents_${localStorage.getItem('ds_current_user') ?? 'guest'}`;
   }
 
   private loadDocuments(): ManagedFile[] {
     try {
-      const raw = localStorage.getItem('ds_documents');
+      const raw = localStorage.getItem(this.docsKey());
       if (!raw) return [];
       return (JSON.parse(raw) as any[]).map(d => ({
         ...d, file: null as any, objectUrl: '', safeUrl: '' as any
@@ -78,7 +86,7 @@ export class App implements AfterViewInit {
 
   private saveDocuments() {
     const serializable = this.allDocuments().map(({ file, objectUrl, safeUrl, ...rest }) => rest);
-    localStorage.setItem('ds_documents', JSON.stringify(serializable));
+    localStorage.setItem(this.docsKey(), JSON.stringify(serializable));
   }
 
   // ── Chat state ──
@@ -183,9 +191,11 @@ export class App implements AfterViewInit {
   }
 
   logout() {
-    localStorage.removeItem('ds_current_user');
+    // Only remove auth tokens — keep ds_documents_<user> and ds_conversations_<user>
+    // so data is restored when the same user logs back in
     localStorage.removeItem('ds_token');
     localStorage.removeItem('ds_user_id');
+    localStorage.removeItem('ds_current_user');
     this.router.navigate(['/login']);
   }
 
