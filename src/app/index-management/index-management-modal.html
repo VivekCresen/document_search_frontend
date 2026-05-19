@@ -69,6 +69,15 @@
                               }
                             </div>
                           }
+                          @if (indexList().length > 0) {
+                            <div class="index-blob-list">
+                              @for (indexName of indexList(); track indexName) {
+                                <div class="index-blob-item">
+                                  <span class="index-blob-name" [title]="indexName">{{ indexName }}</span>
+                                </div>
+                              }
+                            </div>
+                          }
                         }
                       </div>
                     </div>

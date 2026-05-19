@@ -21,32 +21,38 @@
       </div>
     }
 
-    <!-- Fields -->
-    <div class="login-fields">
-      <div class="float-field">
-        <input
-          class="login-input float-input"
-          type="text"
-          id="login-email"
-          placeholder=" "
-          [ngModel]="username()" (ngModelChange)="username.set($event)" (keydown.enter)="login()" />
-        <label class="float-label" for="login-email">Email or Username</label>
+    <form (ngSubmit)="login()" autocomplete="on">
+      <!-- Fields -->
+      <div class="login-fields">
+        <div class="float-field">
+          <input
+            class="login-input float-input"
+            type="text"
+            id="login-email"
+            name="username"
+            autocomplete="username"
+            placeholder=" "
+            [ngModel]="username()" (ngModelChange)="username.set($event)" />
+          <label class="float-label" for="login-email">Email or Username</label>
+        </div>
+
+        <div class="float-field">
+          <input
+            class="login-input float-input"
+            type="password"
+            id="login-password"
+            name="password"
+            autocomplete="current-password"
+            placeholder=" "
+            [ngModel]="password()" (ngModelChange)="password.set($event)" />
+          <label class="float-label" for="login-password">Password</label>
+        </div>
       </div>
 
-      <div class="float-field">
-        <input
-          class="login-input float-input"
-          type="password"
-          id="login-password"
-          placeholder=" "
-          [ngModel]="password()" (ngModelChange)="password.set($event)" (keydown.enter)="login()" />
-        <label class="float-label" for="login-password">Password</label>
-      </div>
-    </div>
-
-    <button class="login-btn" (click)="login()" [disabled]="loading()">
-      {{ loading() ? 'Signing in…' : 'Login' }}
-    </button>
+      <button class="login-btn" type="submit" [disabled]="loading()">
+        {{ loading() ? 'Signing in…' : 'Login' }}
+      </button>
+    </form>
 
     <p class="login-footer login-footer-lg">
       Don't have an account?&nbsp;<a routerLink="/register" class="login-signup-link">Sign Up</a>

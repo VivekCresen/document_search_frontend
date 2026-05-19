@@ -7,6 +7,7 @@ import { Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ApiService } from './services/api.service';
 import { IndexManagementModal } from './index-management/index-management-modal';
+import { tokenHasAdminRole } from './services/auth-role.util';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -174,7 +175,7 @@ export class App implements AfterViewInit {
   // ── Profile dropdown ──
   profileOpen = signal(false);
   currentUser  = signal(localStorage.getItem('ds_current_user') ?? 'User');
-  isAdmin      = signal(localStorage.getItem('ds_is_admin') === 'true');
+  isAdmin      = signal(tokenHasAdminRole(localStorage.getItem('ds_token')));
   toggleProfile(event: MouseEvent) { event.stopPropagation(); this.profileOpen.update(v => !v); }
   closeProfile() { this.profileOpen.set(false); this.openMenuConvId.set(null); }
 
@@ -466,7 +467,11 @@ export class App implements AfterViewInit {
   closeModal()       { this.showUploadModal.set(false); }
   openManageModal()  { this.showManageIndexesModal.set(false); this.showManageModal.set(true); }
   closeManageModal() { this.showManageModal.set(false); this.manageTab.set('documents'); }
-  openManageIndexesModal()  { this.showManageModal.set(false); this.showManageIndexesModal.set(true); }
+  openManageIndexesModal()  {
+    if (!this.isAdmin()) return;
+    this.showManageModal.set(false);
+    this.showManageIndexesModal.set(true);
+  }
   closeManageIndexesModal() { this.showManageIndexesModal.set(false); }
 
   onDragOver(event: DragEvent) { event.preventDefault(); this.isDragging.set(true); }

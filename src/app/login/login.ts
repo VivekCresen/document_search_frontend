@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../services/api.service';
+import { tokenHasAdminRole } from '../services/auth-role.util';
 
 @Component({
   selector: 'app-login',
@@ -22,19 +23,6 @@ export class Login {
       return;
     }
 
-    const isAdmin = this.username().trim() === 'admin' && this.password().trim() === 'admin';
-    if (isAdmin) {
-      this.loading.set(true);
-      this.error.set('');
-      localStorage.setItem('ds_current_user', 'admin');
-      localStorage.setItem('ds_is_admin', 'true');
-      localStorage.setItem('ds_user_id', 'admin');
-      localStorage.setItem('ds_token', 'eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiJ9.admin');
-      this.loading.set(false);
-      this.router.navigate(['/chat']);
-      return;
-    }
-
     this.loading.set(true);
     this.error.set('');
     this.api.login({ userNameOrEmail: this.username(), password: this.password() }).subscribe({
@@ -42,8 +30,8 @@ export class Login {
         this.loading.set(false);
         localStorage.setItem('ds_current_user', res.userName ?? res.email ?? this.username());
         localStorage.setItem('ds_current_email', res.email ?? '');
-        localStorage.setItem('ds_is_admin', 'false');
         if (res.token) localStorage.setItem('ds_token', res.token);
+        localStorage.setItem('ds_is_admin', String(tokenHasAdminRole(res.token ?? null)));
         if (res.id)    localStorage.setItem('ds_user_id', String(res.id));
         this.router.navigate(['/chat']);
       },

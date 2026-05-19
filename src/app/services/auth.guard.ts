@@ -1,10 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-
-/** JWT tokens always start with "ey" (base64-encoded {"alg":...}) */
-function isJwt(token: string | null): boolean {
-  return !!token && token.startsWith('ey') && token.split('.').length === 3;
-}
+import { isJwt } from './auth-role.util';
 
 export const authGuard: CanActivateFn = () => {
   const router = inject(Router);
@@ -17,6 +13,7 @@ export const authGuard: CanActivateFn = () => {
   localStorage.removeItem('ds_token');
   localStorage.removeItem('ds_current_user');
   localStorage.removeItem('ds_user_id');
+  localStorage.removeItem('ds_is_admin');
   router.navigate(['/login']);
   return false;
 };

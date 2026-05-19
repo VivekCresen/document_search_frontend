@@ -33,6 +33,8 @@ export interface AuthResponse {
   id?: string;        // UUID stored as string
   userName?: string;
   email?: string;
+  isAdmin?: boolean;
+  roles?: string[];
   message?: string;
 }
 
@@ -183,6 +185,10 @@ export interface TriggerIndexRequest {
   blobUri: string;
   blobName: string;
   fileName: string;
+}
+
+export interface IndexListResponse {
+  indexes: string[];
 }
 
 // ─────────────────────────────────────────────
@@ -382,9 +388,30 @@ export class ApiService {
     return this.http.post<Record<string, unknown>>(`${this.base}/api/indexing/jobs/index-schema`, null);
   }
 
+  /** GET /api/indexing/jobs/indexes — list Azure Search indexes */
+  listIndexes(): Observable<IndexListResponse> {
+    return this.http.get<IndexListResponse>(`${this.base}/api/indexing/jobs/indexes`);
+  }
+
+  /** DELETE /api/indexing/jobs/indexes/{indexName} — delete a search index */
+  deleteIndex(indexName: string): Observable<Record<string, unknown>> {
+    return this.http.delete<Record<string, unknown>>(
+      `${this.base}/api/indexing/jobs/indexes/${encodeURIComponent(indexName)}`
+    );
+  }
+
+  /** DELETE /api/indexing/jobs/index-schema — delete configured search index */
+  deleteConfiguredIndex(): Observable<Record<string, unknown>> {
+    return this.http.delete<Record<string, unknown>>(`${this.base}/api/indexing/jobs/index-schema`);
+  }
+
+  /** DELETE /api/indexing/jobs/documents — clear all docs from configured search index */
+  clearIndexDocuments(): Observable<Record<string, unknown>> {
+    return this.http.delete<Record<string, unknown>>(`${this.base}/api/indexing/jobs/documents`);
+  }
+
   /** POST /api/indexing/blobs/trigger — queue a single blob for immediate indexing */
   triggerBlobIndexing(req: TriggerIndexRequest): Observable<Record<string, unknown>> {
     return this.http.post<Record<string, unknown>>(`${this.base}/api/indexing/blobs/trigger`, req);
   }
 }
-

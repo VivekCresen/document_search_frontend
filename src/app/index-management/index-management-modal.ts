@@ -69,6 +69,7 @@ export class IndexManagementModal {
   opResult               = signal<string | null>(null);
   opError                = signal<string | null>(null);
   blobList               = signal<BlobInventoryItem[]>([]);
+  indexList              = signal<string[]>([]);
 
   private api = inject(ApiService);
 
@@ -85,6 +86,7 @@ export class IndexManagementModal {
       this.opResult.set(null);
       this.opError.set(null);
       this.blobList.set([]);
+      this.indexList.set([]);
     }
   }
 
@@ -96,6 +98,7 @@ export class IndexManagementModal {
     this.opResult.set(null);
     this.opError.set(null);
     this.blobList.set([]);
+    this.indexList.set([]);
     try {
       switch (opNumber) {
         case 1: {
@@ -122,12 +125,20 @@ export class IndexManagementModal {
           break;
         }
         case 4: {
-          this.opError.set('Use "View Indexed Files Log" (op 8) to find the file, then click "Re-index" next to it.');
+          const blobs = await firstValueFrom(this.api.listIndexableBlobs());
+          this.blobList.set(blobs);
+          this.opResult.set(`${blobs.length} file${blobs.length !== 1 ? 's' : ''} available. Click the re-index action next to a file.`);
           break;
         }
-        case 5:
+        case 5: {
+          const blobs = await firstValueFrom(this.api.listIndexableBlobs());
+          this.blobList.set(blobs);
+          this.opResult.set(`${blobs.length} file${blobs.length !== 1 ? 's' : ''} available. File-level delete is handled by removing the source blob, then running incremental indexing.`);
+          break;
+        }
         case 6: {
-          this.opError.set('Delete operations must be performed via the Azure Portal or Azure CLI to prevent accidental data loss.');
+          const res = await firstValueFrom(this.api.clearIndexDocuments());
+          this.opResult.set(`Cleared ${res['deletedDocuments'] ?? 0} document(s) from index "${res['index'] ?? 'configured index'}".`);
           break;
         }
         case 7: {
@@ -149,10 +160,31 @@ export class IndexManagementModal {
           this.opResult.set(`${blobs.length} indexable blob${blobs.length !== 1 ? 's' : ''} found.`);
           break;
         }
-        case 9:
-        case 10:
+        case 9: {
+          const [blobs, pend, stable, failed] = await Promise.all([
+            firstValueFrom(this.api.listIndexableBlobs()),
+            firstValueFrom(this.api.countJobs('to_be_ingested')),
+            firstValueFrom(this.api.countJobs('stable')),
+            firstValueFrom(this.api.countJobs('failed')),
+          ]);
+          this.blobList.set(blobs);
+          this.opResult.set(
+            `Validated ${blobs.length} source blob${blobs.length !== 1 ? 's' : ''}. ` +
+            `Pending: ${pend['to_be_ingested'] ?? pend['count'] ?? 0}, ` +
+            `stable: ${stable['stable'] ?? stable['count'] ?? 0}, ` +
+            `failed: ${failed['failed'] ?? failed['count'] ?? 0}.`
+          );
+          break;
+        }
+        case 10: {
+          const res = await firstValueFrom(this.api.listIndexes());
+          this.indexList.set(res.indexes ?? []);
+          this.opResult.set(`${this.indexList().length} index${this.indexList().length !== 1 ? 'es' : ''} found.`);
+          break;
+        }
         case 11: {
-          this.opError.set('Manage this via the Azure Portal or Azure Search REST API.');
+          const res = await firstValueFrom(this.api.deleteConfiguredIndex());
+          this.opResult.set(`Deleted index "${res['index'] ?? 'configured index'}".`);
           break;
         }
         case 12: {
@@ -161,9 +193,12 @@ export class IndexManagementModal {
         }
       }
     } catch (err: any) {
-      this.opError.set(
-        err?.error?.message ?? err?.message ?? 'Operation failed — is the indexing service running on port 8086?'
-      );
+      const message = err?.status === 401
+        ? 'Admin session expired. Please log in again.'
+        : err?.status === 403
+          ? 'Admin role is required for this action.'
+          : err?.error?.message ?? err?.message ?? 'Operation failed. Check that the indexing service is running on port 8086.';
+      this.opError.set(message);
     } finally {
       this.runningOp.set(null);
     }
