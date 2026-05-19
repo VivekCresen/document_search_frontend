@@ -1834,7 +1834,8 @@ body {
 
 /* -- Manage Indexes modal -- */
 .index-modal {
-  width: 900px;
+  width: 1000px;
+  height: 450px;
 }
 
 .index-modal-header {
@@ -1876,7 +1877,7 @@ body {
 .index-section-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 15px;
 }
 
 .index-section-card {
@@ -1908,12 +1909,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 15px;
   border-bottom: 1px solid var(--border);
 }
 
 .index-section-toggle {
   width: 100%;
+  height: 55px;
   background: none;
   border: none;
   cursor: pointer;
@@ -1943,7 +1945,7 @@ body {
 }
 
 .index-section-title {
-  font-size: 0.74rem;
+  font-size: 0.90rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
