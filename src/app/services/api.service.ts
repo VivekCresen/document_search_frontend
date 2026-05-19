@@ -152,6 +152,40 @@ export interface MetricsResponse {
 }
 
 // ─────────────────────────────────────────────
+//  Azure Indexing Service  →  /api/indexing/* (port 8086)
+// ─────────────────────────────────────────────
+
+export interface BlobInventoryItem {
+  blobUri: string;
+  blobName: string;
+  fileName: string;
+  lastModified: string;
+  sizeBytes: number;
+  etag: string;
+}
+
+export interface BlobScanResult {
+  scanned: number;
+  queuedForIngestion: number;
+  queuedForDeletion: number;
+  unchanged: number;
+  ingestionBlobUris: string[];
+  deletionBlobUris: string[];
+}
+
+export interface JobProcessResult {
+  processed: number;
+  succeeded: number;
+  failed: number;
+}
+
+export interface TriggerIndexRequest {
+  blobUri: string;
+  blobName: string;
+  fileName: string;
+}
+
+// ─────────────────────────────────────────────
 //  Permissions  →  /permissions/*
 // ─────────────────────────────────────────────
 
@@ -205,6 +239,16 @@ export class ApiService {
     form.append('file', file);
     const url = `${this.base}/api/documents/upload?username=${encodeURIComponent(username)}`;
     return this.http.post(url, form, { responseType: 'text' });
+  }
+
+  /** POST /api/documents/upload-multiple — upload several files at once */
+  uploadMultipleDocuments(files: File[], folderId: string, username: string): Observable<{ results: boolean[]; totalFiles: number }> {
+    const fileInfos: FilePath[] = files.map(f => ({ filePath: [username, folderId, f.name] }));
+    const form = new FormData();
+    form.append('fileInfos', new Blob([JSON.stringify(fileInfos)], { type: 'application/json' }));
+    files.forEach(f => form.append('files', f));
+    const url = `${this.base}/api/documents/upload-multiple?username=${encodeURIComponent(username)}`;
+    return this.http.post<{ results: boolean[]; totalFiles: number }>(url, form);
   }
 
   /** GET /api/documents/download/{documentId} — download via Spring Resource */
@@ -303,6 +347,44 @@ export class ApiService {
   /** POST /api/v1/schema/refresh — refresh the schema registry */
   refreshSchemas(): Observable<SchemaRefreshResponse> {
     return this.http.post<SchemaRefreshResponse>(`${this.base}/api/v1/schema/refresh`, null);
+  }
+
+  // ── Azure Indexing Service (port 8086) ────────────────────────────────
+
+  /** GET /api/indexing/blobs — list all indexable blobs in Azure Storage */
+  listIndexableBlobs(): Observable<BlobInventoryItem[]> {
+    return this.http.get<BlobInventoryItem[]>(`${this.base}/api/indexing/blobs`);
+  }
+
+  /** POST /api/indexing/blobs/scan — scan container and queue new/modified blobs */
+  scanAndQueue(): Observable<BlobScanResult> {
+    return this.http.post<BlobScanResult>(`${this.base}/api/indexing/blobs/scan`, null);
+  }
+
+  /** POST /api/indexing/blobs/requeue-stable — reset stable files back for re-indexing */
+  requeueStableFiles(): Observable<{ queued: number }> {
+    return this.http.post<{ queued: number }>(`${this.base}/api/indexing/blobs/requeue-stable`, null);
+  }
+
+  /** GET /api/indexing/blobs/jobs/count?status= — count jobs by status */
+  countJobs(status = 'to_be_ingested'): Observable<Record<string, number>> {
+    return this.http.get<Record<string, number>>(`${this.base}/api/indexing/blobs/jobs/count?status=${encodeURIComponent(status)}`);
+  }
+
+  /** POST /api/indexing/jobs/process — run queued ingestion jobs */
+  processJobs(maxJobs?: number): Observable<JobProcessResult> {
+    const params = maxJobs != null ? `?maxJobs=${maxJobs}` : '';
+    return this.http.post<JobProcessResult>(`${this.base}/api/indexing/jobs/process${params}`, null);
+  }
+
+  /** POST /api/indexing/jobs/index-schema — create or upgrade Azure Search index schema */
+  createOrUpdateIndexSchema(): Observable<Record<string, unknown>> {
+    return this.http.post<Record<string, unknown>>(`${this.base}/api/indexing/jobs/index-schema`, null);
+  }
+
+  /** POST /api/indexing/blobs/trigger — queue a single blob for immediate indexing */
+  triggerBlobIndexing(req: TriggerIndexRequest): Observable<Record<string, unknown>> {
+    return this.http.post<Record<string, unknown>>(`${this.base}/api/indexing/blobs/trigger`, req);
   }
 }
 

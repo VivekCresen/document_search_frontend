@@ -41,9 +41,10 @@ export class Login {
       next: (res) => {
         this.loading.set(false);
         localStorage.setItem('ds_current_user', res.userName ?? res.email ?? this.username());
+        localStorage.setItem('ds_current_email', res.email ?? '');
         localStorage.setItem('ds_is_admin', 'false');
         if (res.token) localStorage.setItem('ds_token', res.token);
-        if (res.id) localStorage.setItem('ds_user_id', res.id);
+        if (res.id)    localStorage.setItem('ds_user_id', String(res.id));
         this.router.navigate(['/chat']);
       },
       error: (err) => {

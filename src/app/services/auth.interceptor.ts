@@ -7,6 +7,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router   = inject(Router);
   const rawToken = localStorage.getItem('ds_token');
   const identity = localStorage.getItem('ds_current_user') ?? '';
+  const email    = localStorage.getItem('ds_current_email') ?? '';
 
   // Only attach the token if it looks like a real JWT (ey...) to avoid sending stale non-JWT tokens
   const isValidJwt = !!rawToken && rawToken.startsWith('ey') && rawToken.split('.').length === 3;
@@ -18,8 +19,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     // Warn in dev when a protected request goes out with no token — helps catch missing login
     console.warn(`[authInterceptor] No JWT token found for request: ${req.method} ${req.url}`);
   }
-  if (identity)               headers['X-Username']    = identity;
-  if (identity.includes('@')) headers['X-User-Email'] = identity;
+  if (identity) headers['X-Username'] = identity;
+  // Prefer the dedicated email key; fall back to identity when it looks like an email
+  const userEmail = email || (identity.includes('@') ? identity : '');
+  if (userEmail) headers['X-User-Email'] = userEmail;
 
   if (Object.keys(headers).length > 0) {
     req = req.clone({ setHeaders: headers });

@@ -1,4 +1,9 @@
 {
+  "/api/indexing": {
+    "target": "http://localhost:8086",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api": {
     "target": "http://localhost:8085",
     "secure": false,

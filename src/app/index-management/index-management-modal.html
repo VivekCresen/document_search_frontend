@@ -34,6 +34,42 @@
                     <div class="index-item-content" [class.index-item-content-open]="expandedIndexOperation() === item.number">
                       <div class="index-item-detail">
                         <p>{{ item.description }}</p>
+
+                        @if (item.number !== 12) {
+                          <button
+                            class="index-run-btn"
+                            [class.index-run-btn-running]="runningOp() === item.number"
+                            [disabled]="runningOp() !== null"
+                            (click)="runOperation(item.number, $event)">
+                            @if (runningOp() === item.number) {
+                              <span class="index-run-spinner"></span> Running…
+                            } @else {
+                              ▶ Run
+                            }
+                          </button>
+                        } @else {
+                          <button class="index-run-btn" (click)="closeModal()">Close Panel</button>
+                        }
+
+                        @if (lastRunOp() === item.number) {
+                          @if (opResult()) {
+                            <div class="index-op-result">✓ {{ opResult() }}</div>
+                          }
+                          @if (opError()) {
+                            <div class="index-op-error">✗ {{ opError() }}</div>
+                          }
+                          @if (blobList().length > 0) {
+                            <div class="index-blob-list">
+                              @for (blob of blobList(); track blob.blobUri) {
+                                <div class="index-blob-item">
+                                  <span class="index-blob-name" [title]="blob.blobUri">{{ blob.fileName }}</span>
+                                  <span class="index-blob-size">{{ formatSize(blob.sizeBytes) }}</span>
+                                  <button class="index-blob-trigger" (click)="triggerSingleBlob(blob, $event)" title="Re-index this file">↻</button>
+                                </div>
+                              }
+                            </div>
+                          }
+                        }
                       </div>
                     </div>
                   </div>

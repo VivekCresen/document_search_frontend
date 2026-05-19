@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Output, signal } from '@angular/core';
+import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { ApiService, BlobInventoryItem } from '../services/api.service';
 
 interface IndexOperationSection {
   title: string;
@@ -60,8 +62,15 @@ export class IndexManagementModal {
     }
   ];
 
-  expandedIndexSection = signal<string | null>(null);
+  expandedIndexSection   = signal<string | null>(null);
   expandedIndexOperation = signal<number | null>(null);
+  runningOp              = signal<number | null>(null);
+  lastRunOp              = signal<number | null>(null);
+  opResult               = signal<string | null>(null);
+  opError                = signal<string | null>(null);
+  blobList               = signal<BlobInventoryItem[]>([]);
+
+  private api = inject(ApiService);
 
   toggleIndexSection(title: string) {
     this.expandedIndexSection.update(current => current === title ? null : title);
@@ -71,6 +80,115 @@ export class IndexManagementModal {
     event?.stopPropagation();
     this.expandedIndexSection.set(sectionTitle);
     this.expandedIndexOperation.update(current => current === itemNumber ? null : itemNumber);
+    // Clear previous results when switching operation
+    if (this.lastRunOp() !== itemNumber) {
+      this.opResult.set(null);
+      this.opError.set(null);
+      this.blobList.set([]);
+    }
+  }
+
+  async runOperation(opNumber: number, event?: MouseEvent) {
+    event?.stopPropagation();
+    if (this.runningOp() !== null) return;
+    this.runningOp.set(opNumber);
+    this.lastRunOp.set(opNumber);
+    this.opResult.set(null);
+    this.opError.set(null);
+    this.blobList.set([]);
+    try {
+      switch (opNumber) {
+        case 1: {
+          const res = await firstValueFrom(this.api.createOrUpdateIndexSchema());
+          this.opResult.set(`Index schema created/updated. Index: "${res['index'] ?? 'done'}".`);
+          break;
+        }
+        case 2: {
+          const scan = await firstValueFrom(this.api.scanAndQueue());
+          const proc = await firstValueFrom(this.api.processJobs());
+          this.opResult.set(
+            `Scanned ${scan.scanned} blobs, queued ${scan.queuedForIngestion} for ingestion. ` +
+            `Processed ${proc.processed} job(s): ${proc.succeeded} succeeded, ${proc.failed} failed.`
+          );
+          break;
+        }
+        case 3: {
+          const requeue = await firstValueFrom(this.api.requeueStableFiles());
+          const proc    = await firstValueFrom(this.api.processJobs());
+          this.opResult.set(
+            `Reset ${requeue.queued} stable file(s) for re-indexing. ` +
+            `Processed ${proc.processed} job(s): ${proc.succeeded} succeeded, ${proc.failed} failed.`
+          );
+          break;
+        }
+        case 4: {
+          this.opError.set('Use "View Indexed Files Log" (op 8) to find the file, then click "Re-index" next to it.');
+          break;
+        }
+        case 5:
+        case 6: {
+          this.opError.set('Delete operations must be performed via the Azure Portal or Azure CLI to prevent accidental data loss.');
+          break;
+        }
+        case 7: {
+          const [pend, stable, failed] = await Promise.all([
+            firstValueFrom(this.api.countJobs('to_be_ingested')),
+            firstValueFrom(this.api.countJobs('stable')),
+            firstValueFrom(this.api.countJobs('failed')),
+          ]);
+          this.opResult.set(
+            `Pending: ${pend['to_be_ingested'] ?? pend['count'] ?? 0}  |  ` +
+            `Stable: ${stable['stable'] ?? stable['count'] ?? 0}  |  ` +
+            `Failed: ${failed['failed'] ?? failed['count'] ?? 0}`
+          );
+          break;
+        }
+        case 8: {
+          const blobs = await firstValueFrom(this.api.listIndexableBlobs());
+          this.blobList.set(blobs);
+          this.opResult.set(`${blobs.length} indexable blob${blobs.length !== 1 ? 's' : ''} found.`);
+          break;
+        }
+        case 9:
+        case 10:
+        case 11: {
+          this.opError.set('Manage this via the Azure Portal or Azure Search REST API.');
+          break;
+        }
+        case 12: {
+          this.closeModal();
+          break;
+        }
+      }
+    } catch (err: any) {
+      this.opError.set(
+        err?.error?.message ?? err?.message ?? 'Operation failed — is the indexing service running on port 8086?'
+      );
+    } finally {
+      this.runningOp.set(null);
+    }
+  }
+
+  async triggerSingleBlob(blob: BlobInventoryItem, event: MouseEvent) {
+    event.stopPropagation();
+    try {
+      const res = await firstValueFrom(this.api.triggerBlobIndexing({
+        blobUri: blob.blobUri,
+        blobName: blob.blobName,
+        fileName: blob.fileName
+      }));
+      const queued = res['queued'] !== false;
+      this.opResult.set(`"${blob.fileName}": ${queued ? 'Queued for re-indexing.' : 'Already queued or stable.'}`);
+    } catch (err: any) {
+      this.opError.set(`Trigger failed for "${blob.fileName}": ${err?.error?.message ?? err?.message}`);
+    }
+  }
+
+  formatSize(bytes: number): string {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
   closeModal() {
