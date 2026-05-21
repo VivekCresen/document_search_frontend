@@ -257,6 +257,13 @@
                 </div>
               }
               <span class="bubble-text">{{ msg.content }}</span>
+              @if (msg.role === 'assistant' && msg.citations && hasKeys(msg.citations)) {
+                <div class="citation-link-wrapper">
+                  <button class="citation-link-btn" (click)="openCitationsModal(msg.citations, $event)">
+                    View Source &gt;
+                  </button>
+                </div>
+              }
             </div>
             <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
           </div>
@@ -682,6 +689,54 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
           Delete
         </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ════════════════════════════════════════
+     CITATIONS MODAL
+════════════════════════════════════════ -->
+@if (viewingCitations()) {
+  <div class="modal-backdrop" (click)="closeCitationsModal()">
+    <div class="modal citation-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <div class="modal-title-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          Source Citations
+        </div>
+        <button class="modal-close" (click)="closeCitationsModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body citation-modal-body">
+        <div class="citation-list">
+          @for (citation of getCitationsArray(viewingCitations()); track citation.index) {
+            <div class="citation-card">
+              <div class="citation-info">
+                <span class="citation-index">#{{ citation.index }}</span>
+                <span class="citation-filename" [title]="citation.file_name">{{ citation.file_name }}</span>
+              </div>
+              <div class="citation-actions">
+                @if (citation.view_link) {
+                  <a [href]="citation.view_link" target="_blank" class="citation-action-btn view-fab">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    View
+                  </a>
+                }
+                @if (citation.download_link) {
+                  <a [href]="citation.download_link" target="_blank" class="citation-action-btn dl-fab">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download
+                  </a>
+                }
+              </div>
+            </div>
+          }
+        </div>
       </div>
     </div>
   </div>

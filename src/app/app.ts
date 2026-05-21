@@ -13,6 +13,7 @@ interface Message {
   content: string;
   attachedFiles?: string[];
   timestamp: Date;
+  citations?: Record<string, any>;
 }
 
 interface Conversation {
@@ -150,6 +151,30 @@ export class App implements AfterViewInit {
   private _resizing = false;
   private _resizeStartX = 0;
   private _resizeStartW = 0;
+
+  // ── Citations Modal State ──
+  viewingCitations = signal<any | null>(null);
+
+  openCitationsModal(citations: any, event: MouseEvent) {
+    event.stopPropagation();
+    this.viewingCitations.set(citations);
+  }
+
+  closeCitationsModal() {
+    this.viewingCitations.set(null);
+  }
+
+  hasKeys(obj: any): boolean {
+    return obj && Object.keys(obj).length > 0;
+  }
+
+  getCitationsArray(citations: any): any[] {
+    if (!citations) return [];
+    return Object.keys(citations).map(key => ({
+      index: key,
+      ...citations[key]
+    }));
+  }
 
   toggleSidebar() { this.sidebarCollapsed.update(v => !v); }
 
@@ -358,6 +383,25 @@ export class App implements AfterViewInit {
     const convId = this.activeConvId()!;
     const questionIndex = this.messages().length;
 
+    // Check for mock "hello" query
+    /*
+    if (text.toLowerCase() === 'hello') {
+      setTimeout(() => {
+        this.loading.set(false);
+        const mockCitations = {
+          "1": {
+            file_name: "sample_document.pdf",
+            view_link: "https://example.com/view/sample_document.pdf",
+            download_link: "https://example.com/download/sample_document.pdf",
+            highlighted_pages: [1, 2]
+          }
+        };
+        this.streamResponse("Hello, welcome!", convId, mockCitations);
+      }, 800);
+      return;
+    }
+    */
+
     const payload = {
       metadata: { serviceReferenceId: crypto.randomUUID() },
       requestData: {
@@ -380,8 +424,9 @@ export class App implements AfterViewInit {
         const answerText = cachedRes.responseData?.answer?.[0]?.Text
           ?? cachedRes.responseData?.standalone_query
           ?? 'No answer returned.';
+        const citations = cachedRes.responseData?.citations;
         this.loading.set(false);
-        this.streamResponse(answerText, convId);
+        this.streamResponse(answerText, convId, citations);
       }, 400);
       return;
     }
@@ -393,8 +438,9 @@ export class App implements AfterViewInit {
         const answerText = res.responseData?.answer?.[0]?.Text
           ?? res.responseData?.standalone_query
           ?? 'No answer returned.';
+        const citations = res.responseData?.citations;
         this.loading.set(false);
-        this.streamResponse(answerText, convId);
+        this.streamResponse(answerText, convId, citations);
       },
       error: (err) => {
         let msg: string;
@@ -413,7 +459,7 @@ export class App implements AfterViewInit {
     });
   }
 
-  private streamResponse(fullText: string, convId: string) {
+  private streamResponse(fullText: string, convId: string, citations?: any) {
     this.isStreaming.set(true);
     this.streamingText.set('');
     let i = 0;
@@ -428,7 +474,7 @@ export class App implements AfterViewInit {
         clearInterval(this.streamInterval);
         this.streamingText.set('');
         this.isStreaming.set(false);
-        const assistantMsg: Message = { role: 'assistant', content: fullText, timestamp: new Date() };
+        const assistantMsg: Message = { role: 'assistant', content: fullText, timestamp: new Date(), citations };
         this.conversations.update(convs => convs.map(c =>
           c.id === convId ? { ...c, messages: [...c.messages, assistantMsg] } : c
         ));
