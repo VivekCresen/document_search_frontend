@@ -10,10 +10,11 @@ import { tokenHasAdminRole } from '../services/auth-role.util';
   templateUrl: './login.html'
 })
 export class Login {
-  username = signal('');
-  password = signal('');
-  error    = signal('');
-  loading  = signal(false);
+  username     = signal('');
+  password     = signal('');
+  error        = signal('');
+  loading      = signal(false);
+  showPassword = signal(false);
 
   constructor(private router: Router, private api: ApiService) {}
 

@@ -1,18 +1,29 @@
 <div class="login-bg">
-  <div class="login-card">
+  <div class="login-card login-card--compact">
 
-    <!-- Brand -->
+    <!-- Company logo -->
     <div class="login-brand">
-      <img src="assets/logo.png" alt="Cresen Solutions" class="login-brand-logo" />
+      <img src="assets/logo.png" alt="Company Logo" class="login-brand-logo" />
     </div>
 
-    <!-- System name -->
-    <div class="login-system-name">DocQuest</div>
-
-    <!-- Header -->
-    <div class="login-header login-header-tight">
-      <h1 class="login-title">Create Account</h1>
+    <!-- App icon -->
+    <div class="login-app-icon">
+      <svg width="48" height="48" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="4" width="44" height="54" rx="4" stroke="#475569" stroke-width="2.5"/>
+        <path d="M38 4 L48 14 L38 14 Z" fill="#E2E8F0" stroke="#475569" stroke-width="1.5" stroke-linejoin="round"/>
+        <line x1="12" y1="25" x2="40" y2="25" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="12" y1="34" x2="38" y2="34" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="12" y1="43" x2="28" y2="43" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="52" cy="56" r="14" fill="white" stroke="#1E3A8A" stroke-width="2.5"/>
+        <line x1="62" y1="66" x2="74" y2="78" stroke="#1E3A8A" stroke-width="3.5" stroke-linecap="round"/>
+      </svg>
     </div>
+
+    <!-- Title -->
+    <div class="login-app-title">
+      <span class="login-app-title-dark">Doc </span><span class="login-app-title-blue">Seek</span>
+    </div>
+    <div class="login-dot-sep"></div>
 
     @if (error()) {
       <div class="auth-alert auth-alert-error">
@@ -84,8 +95,14 @@
       {{ loading() ? 'Creating account…' : 'Sign Up' }}
     </button>
 
-    <p class="login-footer login-footer-lg">
-      Already have an account?&nbsp;<a routerLink="/login" class="login-signup-link">Sign In</a>
+    <div class="login-or">
+      <span class="login-or-line"></span>
+      <span class="login-or-text">or</span>
+      <span class="login-or-line"></span>
+    </div>
+
+    <p class="login-footer">
+      Already have an account?&nbsp;<a routerLink="/login" class="login-signup-link">Sign in</a>
     </p>
 
   </div>
