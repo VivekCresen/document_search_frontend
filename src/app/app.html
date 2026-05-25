@@ -716,24 +716,42 @@
         <div class="citation-list">
           @for (citation of getCitationsArray(viewingCitations()); track citation.index) {
             <div class="citation-card">
-              <div class="citation-info">
-                <span class="citation-index">#{{ citation.index }}</span>
-                <span class="citation-filename" [title]="citation.file_name">{{ citation.file_name }}</span>
+              <div class="citation-header-row">
+                <div class="citation-info">
+                  <span class="citation-index">#{{ citation.index }}</span>
+                  <span class="citation-filename" [title]="citation.file_name">{{ citation.file_name }}</span>
+                  @if (citation.page) {
+                    <span class="citation-page-badge">Page {{ citation.page }}</span>
+                  }
+                </div>
+                <div class="citation-actions">
+                  @if (citation.view_link) {
+                    <a [href]="citation.view_link" target="_blank" class="citation-action-btn view-fab">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      View Highlighted PDF
+                    </a>
+                  }
+                  @if (citation.download_link) {
+                    <a [href]="citation.download_link" target="_blank" class="citation-action-btn dl-fab">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      Download
+                    </a>
+                  }
+                </div>
               </div>
-              <div class="citation-actions">
-                @if (citation.view_link) {
-                  <a [href]="citation.view_link" target="_blank" class="citation-action-btn view-fab">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    View
-                  </a>
-                }
-                @if (citation.download_link) {
-                  <a [href]="citation.download_link" target="_blank" class="citation-action-btn dl-fab">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Download
-                  </a>
-                }
-              </div>
+
+              @if (citation.text) {
+                <div class="citation-text-block">
+                  <div class="citation-text-quote">"{{ citation.text }}"</div>
+                </div>
+              }
+
+              @if (citation.relevance) {
+                <div class="citation-relevance-block">
+                  <span class="citation-relevance-label">Supporting Passage Explanation</span>
+                  <span class="citation-relevance-val">{{ citation.relevance }}</span>
+                </div>
+              }
             </div>
           }
         </div>
