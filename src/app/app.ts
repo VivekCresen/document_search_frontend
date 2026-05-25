@@ -14,6 +14,7 @@ interface Message {
   content: string;
   attachedFiles?: string[];
   timestamp: Date;
+  citations?: Record<string, any>;
 }
 
 interface Conversation {
@@ -137,6 +138,30 @@ export class App implements AfterViewInit {
 
   // ── Theme ──
   darkMode = signal(localStorage.getItem('ds_theme') === 'dark');
+
+  // ── Citations Modal State ──
+  viewingCitations = signal<any | null>(null);
+
+  openCitationsModal(citations: any, event: MouseEvent) {
+    event.stopPropagation();
+    this.viewingCitations.set(citations);
+  }
+
+  closeCitationsModal() {
+    this.viewingCitations.set(null);
+  }
+
+  hasKeys(obj: any): boolean {
+    return obj && Object.keys(obj).length > 0;
+  }
+
+  getCitationsArray(citations: any): any[] {
+    if (!citations) return [];
+    return Object.keys(citations).map(key => ({
+      index: key,
+      ...citations[key]
+    }));
+  }
 
   // ── Streaming ──
   streamingText   = signal<string>('');
@@ -381,8 +406,9 @@ export class App implements AfterViewInit {
         const answerText = cachedRes.responseData?.answer?.[0]?.Text
           ?? cachedRes.responseData?.standalone_query
           ?? 'No answer returned.';
+        const citations = cachedRes.responseData?.citations;
         this.loading.set(false);
-        this.streamResponse(answerText, convId);
+        this.streamResponse(answerText, convId, citations);
       }, 400);
       return;
     }
@@ -394,8 +420,9 @@ export class App implements AfterViewInit {
         const answerText = res.responseData?.answer?.[0]?.Text
           ?? res.responseData?.standalone_query
           ?? 'No answer returned.';
+        const citations = res.responseData?.citations;
         this.loading.set(false);
-        this.streamResponse(answerText, convId);
+        this.streamResponse(answerText, convId, citations);
       },
       error: (err) => {
         let msg: string;
@@ -414,7 +441,7 @@ export class App implements AfterViewInit {
     });
   }
 
-  private streamResponse(fullText: string, convId: string) {
+  private streamResponse(fullText: string, convId: string, citations?: any) {
     this.isStreaming.set(true);
     this.streamingText.set('');
     let i = 0;
@@ -429,7 +456,7 @@ export class App implements AfterViewInit {
         clearInterval(this.streamInterval);
         this.streamingText.set('');
         this.isStreaming.set(false);
-        const assistantMsg: Message = { role: 'assistant', content: fullText, timestamp: new Date() };
+        const assistantMsg: Message = { role: 'assistant', content: fullText, timestamp: new Date(), citations };
         this.conversations.update(convs => convs.map(c =>
           c.id === convId ? { ...c, messages: [...c.messages, assistantMsg] } : c
         ));
@@ -510,6 +537,12 @@ export class App implements AfterViewInit {
   saveFile(id: string) {
     const f = this.stagedFiles().find(f => f.id === id);
     if (!f) return;
+    
+    // Automatically initialize a chat conversation UUID if none is active
+    if (!this.activeConvId()) {
+      this.newChat();
+    }
+    
     const sessionTitle = this.activeConversation()?.title ?? 'General';
     this.allDocuments.update(docs => [...docs, { ...f, saved: true, sessionTitle }]);
     this.stagedFiles.update(files => files.filter(x => x.id !== id));
@@ -526,9 +559,15 @@ export class App implements AfterViewInit {
 
   // Save all staged files → move all to allDocuments, clear staged
   saveAllFiles() {
-    const sessionTitle = this.activeConversation()?.title ?? 'General';
     const unsaved = this.stagedFiles();
     if (unsaved.length === 0) return;
+    
+    // Automatically initialize a chat conversation UUID if none is active
+    if (!this.activeConvId()) {
+      this.newChat();
+    }
+    
+    const sessionTitle = this.activeConversation()?.title ?? 'General';
     this.allDocuments.update(docs => [...docs, ...unsaved.map(f => ({ ...f, saved: true, sessionTitle }))]);
     this.stagedFiles.set([]);
     this.pendingAttachments.update(p => [...p, ...unsaved.map(f => ({ id: f.id, name: f.name }))]);

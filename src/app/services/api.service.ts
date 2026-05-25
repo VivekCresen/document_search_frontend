@@ -237,9 +237,9 @@ export class ApiService {
 
   // ── Documents ────────────────────────────────
 
-  /** POST /api/documents/upload — filePath: [username, folderId, filename] */
+  /** POST /api/documents/upload — filePath: ["apps", "cresen", "internship", "chatbot", filename] */
   uploadDocument(file: File, folderId: string, username: string): Observable<string> {
-    const fileInfo: FilePath = { filePath: [username, folderId, file.name] };
+    const fileInfo: FilePath = { filePath: ['apps', 'cresen', 'internship', 'chatbot', file.name] };
     const form = new FormData();
     form.append('fileInfo', new Blob([JSON.stringify(fileInfo)], { type: 'application/json' }));
     form.append('file', file);
@@ -249,7 +249,7 @@ export class ApiService {
 
   /** POST /api/documents/upload-multiple — upload several files at once */
   uploadMultipleDocuments(files: File[], folderId: string, username: string): Observable<{ results: boolean[]; totalFiles: number }> {
-    const fileInfos: FilePath[] = files.map(f => ({ filePath: [username, folderId, f.name] }));
+    const fileInfos: FilePath[] = files.map(f => ({ filePath: ['apps', 'cresen', 'internship', 'chatbot', f.name] }));
     const form = new FormData();
     form.append('fileInfos', new Blob([JSON.stringify(fileInfos)], { type: 'application/json' }));
     files.forEach(f => form.append('files', f));
