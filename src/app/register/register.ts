@@ -9,10 +9,10 @@ import { ApiService } from '../services/api.service';
   templateUrl: './register.html'
 })
 export class Register {
-  userName = signal('');
+  userName = signal(''); // Ensure not pre-filled
   fullName = signal('');
-  email    = signal('');
-  password = signal('');
+  email    = signal(''); // Ensure not pre-filled
+  password = signal(''); // Ensure not pre-filled
   confirm  = signal('');
   error    = signal('');
   success  = signal('');
