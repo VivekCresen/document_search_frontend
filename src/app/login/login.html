@@ -51,7 +51,14 @@
               name="username"
               autocomplete="username"
               placeholder="Enter your email or username"
-              [ngModel]="username()" (ngModelChange)="username.set($event)" />
+              [class.input-invalid]="usernameError()"
+              [ngModel]="username()" (ngModelChange)="onUsernameChange($event)" />
+            @if (usernameError()) {
+              <div class="auth-field-error">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {{ usernameError() }}
+              </div>
+            }
           </div>
         </div>
 
@@ -71,7 +78,8 @@
               name="password"
               autocomplete="current-password"
               placeholder="Enter your password"
-              [ngModel]="password()" (ngModelChange)="password.set($event)" />
+              [class.input-invalid]="passwordError()"
+              [ngModel]="password()" (ngModelChange)="onPasswordChange($event)" />
             <button type="button" class="input-eye-btn" (click)="showPassword.set(!showPassword())" tabindex="-1" aria-label="Toggle password visibility">
               @if (showPassword()) {
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -84,8 +92,13 @@
               }
             </button>
           </div>
+          @if (passwordError()) {
+            <div class="auth-field-error">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {{ passwordError() }}
+            </div>
+          }
         </div>
-
       </div>
 
       <button class="login-btn" type="submit" [disabled]="loading()">

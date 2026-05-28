@@ -2,9 +2,11 @@ import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
+import { ToastService } from './toast.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router   = inject(Router);
+  const toast    = inject(ToastService);
   const rawToken = localStorage.getItem('ds_token');
   const identity = localStorage.getItem('ds_current_user') ?? '';
   const email    = localStorage.getItem('ds_current_email') ?? '';
@@ -38,6 +40,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         localStorage.removeItem('ds_current_user');
         localStorage.removeItem('ds_user_id');
         router.navigate(['/login']);
+      }
+      if (err.status === 403) {
+        toast.error('Access Denied: You do not have permission to perform this action.');
       }
       return throwError(() => err);
     })

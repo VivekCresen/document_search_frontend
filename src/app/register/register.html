@@ -40,54 +40,99 @@
 
     <!-- Fields -->
     <div class="login-fields">
-      <div class="float-field">
-        <input
-          class="login-input float-input"
-          type="text"
-          id="reg-username"
-          placeholder=" "
-          [ngModel]="userName()" (ngModelChange)="userName.set($event)" (keydown.enter)="register()" />
-        <label class="float-label" for="reg-username">Username</label>
+      <div>
+        <div class="float-field" [style.margin-bottom]="userNameError() ? '4px' : '16px'">
+          <input
+            class="login-input float-input"
+            type="text"
+            id="reg-username"
+            placeholder=" "
+            [class.input-invalid]="userNameError()"
+            [ngModel]="userName()" (ngModelChange)="onUsernameChange($event)" (keydown.enter)="register()" />
+          <label class="float-label" for="reg-username">Username</label>
+        </div>
+        @if (userNameError()) {
+          <div class="auth-field-error" style="margin-bottom: 12px; padding-left: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {{ userNameError() }}
+          </div>
+        }
       </div>
 
-      <div class="float-field">
-        <input
-          class="login-input float-input"
-          type="text"
-          id="reg-fullname"
-          placeholder=" "
-          [ngModel]="fullName()" (ngModelChange)="fullName.set($event)" (keydown.enter)="register()" />
-        <label class="float-label" for="reg-fullname">Full Name</label>
+      <div>
+        <div class="float-field" [style.margin-bottom]="fullNameError() ? '4px' : '16px'">
+          <input
+            class="login-input float-input"
+            type="text"
+            id="reg-fullname"
+            placeholder=" "
+            [class.input-invalid]="fullNameError()"
+            [ngModel]="fullName()" (ngModelChange)="onFullNameChange($event)" (keydown.enter)="register()" />
+          <label class="float-label" for="reg-fullname">Full Name</label>
+        </div>
+        @if (fullNameError()) {
+          <div class="auth-field-error" style="margin-bottom: 12px; padding-left: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {{ fullNameError() }}
+          </div>
+        }
       </div>
 
-      <div class="float-field">
-        <input
-          class="login-input float-input"
-          type="email"
-          id="reg-email"
-          placeholder=" "
-          [ngModel]="email()" (ngModelChange)="email.set($event)" (keydown.enter)="register()" />
-        <label class="float-label" for="reg-email">Email</label>
+      <div>
+        <div class="float-field" [style.margin-bottom]="emailError() ? '4px' : '16px'">
+          <input
+            class="login-input float-input"
+            type="email"
+            id="reg-email"
+            placeholder=" "
+            [class.input-invalid]="emailError()"
+            [ngModel]="email()" (ngModelChange)="onEmailChange($event)" (keydown.enter)="register()" />
+          <label class="float-label" for="reg-email">Email</label>
+        </div>
+        @if (emailError()) {
+          <div class="auth-field-error" style="margin-bottom: 12px; padding-left: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {{ emailError() }}
+          </div>
+        }
       </div>
 
-      <div class="float-field">
-        <input
-          class="login-input float-input"
-          type="password"
-          id="reg-password"
-          placeholder=" "
-          [ngModel]="password()" (ngModelChange)="password.set($event)" (keydown.enter)="register()" />
-        <label class="float-label" for="reg-password">Password</label>
+      <div>
+        <div class="float-field" [style.margin-bottom]="passwordError() ? '4px' : '16px'">
+          <input
+            class="login-input float-input"
+            type="password"
+            id="reg-password"
+            placeholder=" "
+            [class.input-invalid]="passwordError()"
+            [ngModel]="password()" (ngModelChange)="onPasswordChange($event)" (keydown.enter)="register()" />
+          <label class="float-label" for="reg-password">Password</label>
+        </div>
+        @if (passwordError()) {
+          <div class="auth-field-error" style="margin-bottom: 12px; padding-left: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {{ passwordError() }}
+          </div>
+        }
       </div>
 
-      <div class="float-field">
-        <input
-          class="login-input float-input"
-          type="password"
-          id="reg-confirm"
-          placeholder=" "
-          [ngModel]="confirm()" (ngModelChange)="confirm.set($event)" (keydown.enter)="register()" />
-        <label class="float-label" for="reg-confirm">Confirm Password</label>
+      <div>
+        <div class="float-field" [style.margin-bottom]="confirmError() ? '4px' : '16px'">
+          <input
+            class="login-input float-input"
+            type="password"
+            id="reg-confirm"
+            placeholder=" "
+            [class.input-invalid]="confirmError()"
+            [ngModel]="confirm()" (ngModelChange)="onConfirmChange($event)" (keydown.enter)="register()" />
+          <label class="float-label" for="reg-confirm">Confirm Password</label>
+        </div>
+        @if (confirmError()) {
+          <div class="auth-field-error" style="margin-bottom: 12px; padding-left: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            {{ confirmError() }}
+          </div>
+        }
       </div>
     </div>
 

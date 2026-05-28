@@ -10,23 +10,73 @@ import { tokenHasAdminRole } from '../services/auth-role.util';
   templateUrl: './login.html'
 })
 export class Login {
-  username     = signal('');
-  password     = signal('');
-  error        = signal('');
-  loading      = signal(false);
-  showPassword = signal(false);
+  username      = signal('');
+  password      = signal('');
+  error         = signal('');
+  loading       = signal(false);
+  showPassword  = signal(false);
+
+  // Validation signals
+  usernameError = signal('');
+  passwordError = signal('');
 
   constructor(private router: Router, private api: ApiService) {}
 
+  onUsernameChange(val: string) {
+    this.username.set(val);
+    if (this.usernameError()) {
+      this.validate();
+    }
+  }
+
+  onPasswordChange(val: string) {
+    this.password.set(val);
+    if (this.passwordError()) {
+      this.validate();
+    }
+  }
+
+  validate(): boolean {
+    let isValid = true;
+    
+    // Validate Username / Email
+    if (!this.username().trim()) {
+      this.usernameError.set('Username or Email is required.');
+      isValid = false;
+    } else if (this.username().includes('@')) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
+      if (!emailRegex.test(this.username().trim())) {
+        this.usernameError.set('Please enter a valid email address.');
+        isValid = false;
+      } else {
+        this.usernameError.set('');
+      }
+    } else {
+      this.usernameError.set('');
+    }
+
+    // Validate Password
+    if (!this.password().trim()) {
+      this.passwordError.set('Password is required.');
+      isValid = false;
+    } else if (this.password().length < 6) {
+      this.passwordError.set('Password must be at least 6 characters.');
+      isValid = false;
+    } else {
+      this.passwordError.set('');
+    }
+
+    return isValid;
+  }
+
   login() {
-    if (!this.username().trim() || !this.password().trim()) {
-      this.error.set('Please enter email and password.');
+    if (!this.validate()) {
       return;
     }
 
     this.loading.set(true);
     this.error.set('');
-    this.api.login({ userNameOrEmail: this.username(), password: this.password() }).subscribe({
+    this.api.login({ userNameOrEmail: this.username().trim(), password: this.password() }).subscribe({
       next: (res) => {
         this.loading.set(false);
         localStorage.setItem('ds_current_user', res.userName ?? res.email ?? this.username());

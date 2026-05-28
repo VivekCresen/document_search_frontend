@@ -8,6 +8,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ApiService } from './services/api.service';
 import { IndexManagementModal } from './index-management/index-management-modal';
 import { tokenHasAdminRole } from './services/auth-role.util';
+import { ToastService } from './services/toast.service';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -35,6 +36,9 @@ export interface ManagedFile {
   objectUrl: string;
   safeUrl: SafeResourceUrl;
   sessionTitle?: string;
+  uploading?: boolean;
+  uploadSuccess?: boolean;
+  uploadError?: string;
 }
 
 @Component({
@@ -47,6 +51,7 @@ export class App implements AfterViewInit {
   private sanitizer = inject(DomSanitizer);
   private router = inject(Router);
   private api = inject(ApiService);
+  toast = inject(ToastService);
 
   private queryCache = this.loadQueryCache();
 
@@ -105,9 +110,15 @@ export class App implements AfterViewInit {
     try {
       const raw = localStorage.getItem(this.docsKey());
       if (!raw) return [];
-      return (JSON.parse(raw) as any[]).map(d => ({
-        ...d, file: null as any, objectUrl: '', safeUrl: '' as any
-      }));
+      return (JSON.parse(raw) as any[]).map(d => {
+        const objectUrl = d.objectUrl || '';
+        return {
+          ...d,
+          file: null as any,
+          objectUrl,
+          safeUrl: objectUrl ? this.sanitizer.bypassSecurityTrustResourceUrl(objectUrl) : this.sanitizer.bypassSecurityTrustResourceUrl('about:blank')
+        };
+      });
     } catch { return []; }
   }
 
@@ -141,10 +152,12 @@ export class App implements AfterViewInit {
 
   // ── Citations Modal State ──
   viewingCitations = signal<any | null>(null);
+  selectedCitationIndex = signal<number>(0);
 
   openCitationsModal(citations: any, event: MouseEvent) {
     event.stopPropagation();
     this.viewingCitations.set(citations);
+    this.selectedCitationIndex.set(0);
   }
 
   closeCitationsModal() {
@@ -157,10 +170,53 @@ export class App implements AfterViewInit {
 
   getCitationsArray(citations: any): any[] {
     if (!citations) return [];
-    return Object.keys(citations).map(key => ({
+    return Object.keys(citations).map((key, idx) => ({
       index: key,
+      arrayIndex: idx,
       ...citations[key]
     }));
+  }
+
+  getSelectedCitation(): any | null {
+    const arr = this.getCitationsArray(this.viewingCitations());
+    const idx = this.selectedCitationIndex();
+    return arr.length > idx ? arr[idx] : (arr.length > 0 ? arr[0] : null);
+  }
+
+  getCitationPdfUrl(citation: any): SafeResourceUrl | null {
+    if (!citation) return null;
+    
+    let page = 1;
+    const pageNum = citation.page;
+    if (pageNum !== undefined && pageNum !== null) {
+      const match = String(pageNum).match(/\d+/);
+      if (match) {
+        page = parseInt(match[0], 10);
+      }
+    }
+    if (page < 1) page = 1;
+
+    if (citation.view_link) {
+      let rawUrl = citation.view_link;
+      if (!rawUrl.includes('#page=')) {
+        rawUrl += `#page=${page}`;
+      }
+      return this.sanitizer.bypassSecurityTrustResourceUrl(rawUrl);
+    }
+
+    const doc = this.allDocuments().find(d => d.name === citation.file_name);
+    if (doc && doc.objectUrl) {
+      const rawUrl = doc.objectUrl + `#page=${page}&title=${encodeURIComponent(citation.file_name)}`;
+      return this.sanitizer.bypassSecurityTrustResourceUrl(rawUrl);
+    }
+    return null;
+  }
+
+  getCitationDownloadUrl(citation: any): string | null {
+    if (!citation) return null;
+    if (citation.download_link) return citation.download_link;
+    const doc = this.allDocuments().find(d => d.name === citation.file_name);
+    return doc ? doc.objectUrl : null;
   }
 
   // ── Streaming ──
@@ -278,8 +334,104 @@ export class App implements AfterViewInit {
     'Extract all dates and deadlines',
   ];
 
+  syncChatHistoryFromDb() {
+    const rawToken = localStorage.getItem('ds_token');
+    if (!rawToken) return;
+
+    this.api.getChatHistory().subscribe({
+      next: (dbConversations) => {
+        if (!dbConversations || Object.keys(dbConversations).length === 0) {
+          return;
+        }
+
+        const parsedConvs: Conversation[] = [];
+        
+        for (const [chatId, entryObj] of Object.entries(dbConversations)) {
+          const entry = entryObj as any;
+          const messages: Message[] = [];
+          
+          if (entry.messages && Array.isArray(entry.messages)) {
+            for (const msg of entry.messages) {
+              const dateVal = msg.timestamp || msg.request_timestamp || msg.response_timestamp || entry.chatDate;
+              const date = new Date(dateVal);
+              
+              if (msg.question) {
+                messages.push({
+                  role: 'user',
+                  content: msg.question,
+                  timestamp: date,
+                  attachedFiles: msg.metadata?.attachedFiles || []
+                });
+              }
+              if (msg.answer) {
+                messages.push({
+                  role: 'assistant',
+                  content: msg.answer,
+                  timestamp: date,
+                  citations: msg.citations || msg.metadata?.citations
+                });
+              }
+              
+              if (!msg.question && !msg.answer && msg.content) {
+                messages.push({
+                  role: msg.type === 'user' ? 'user' : 'assistant',
+                  content: msg.content,
+                  timestamp: date
+                });
+              }
+            }
+          }
+
+          parsedConvs.push({
+            id: chatId,
+            title: entry.chatTitle || 'General Chat',
+            messages: messages,
+            createdAt: new Date(entry.chatDate || Date.now())
+          });
+        }
+
+        // Sort by date desc
+        parsedConvs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+        // Update the conversations signal
+        this.conversations.set(parsedConvs);
+        this.saveConversations();
+        
+        // Ensure active Conv is valid
+        if (parsedConvs.length > 0 && !this.activeConvId()) {
+          this.activeConvId.set(parsedConvs[0].id);
+        }
+      },
+      error: (err) => {
+        console.error('Failed to sync chat history from DB:', err);
+      }
+    });
+  }
+
+  clearDbAndLocalStorage() {
+    this.api.clearChatHistory().subscribe({
+      next: () => {
+        this.conversations.set([]);
+        localStorage.removeItem(this.convsKey());
+        this.activeConvId.set(null);
+        this.toast.success('Chat history cleared from database and local storage.');
+      },
+      error: (err) => {
+        console.error('Failed to clear database chat history:', err);
+        this.conversations.set([]);
+        localStorage.removeItem(this.convsKey());
+        this.activeConvId.set(null);
+        this.toast.warning('Cleared local chat history, but database failed: ' + (err.error?.message ?? err.message));
+      }
+    });
+  }
+
   ngAfterViewInit() {
     document.documentElement.setAttribute('data-theme', this.darkMode() ? 'dark' : '');
+    
+    // Sync chat history from PostgreSQL database on startup
+    this.syncChatHistoryFromDb();
+
     const convs = this.conversations();
     if (convs.length > 0 && !this.activeConvId()) {
       this.activeConvId.set(convs[0].id);
@@ -395,7 +547,8 @@ export class App implements AfterViewInit {
         conversation_id: convId,
         product_name: 'MM',
         profile: 'dev',
-        user_id: userId
+        user_id: userId,
+        attached_files: savedFiles.length ? savedFiles : undefined
       }
     };
 
@@ -533,6 +686,21 @@ export class App implements AfterViewInit {
     this.stagedFiles.update(existing => [...existing, ...newFiles]);
   }
 
+  updateDocUploadingState(id: string, uploading: boolean, success: boolean, errorMsg?: string) {
+    this.allDocuments.update(docs => docs.map(d => {
+      if (d.id === id) {
+        return {
+          ...d,
+          uploading,
+          uploadSuccess: success,
+          uploadError: errorMsg
+        };
+      }
+      return d;
+    }));
+    this.saveDocuments();
+  }
+
   // Save one staged file → move to allDocuments, remove from staged
   saveFile(id: string) {
     const f = this.stagedFiles().find(f => f.id === id);
@@ -544,7 +712,14 @@ export class App implements AfterViewInit {
     }
     
     const sessionTitle = this.activeConversation()?.title ?? 'General';
-    this.allDocuments.update(docs => [...docs, { ...f, saved: true, sessionTitle }]);
+    const newDoc: ManagedFile = {
+      ...f,
+      saved: true,
+      sessionTitle,
+      uploading: true,
+      uploadSuccess: false
+    };
+    this.allDocuments.update(docs => [...docs, newDoc]);
     this.stagedFiles.update(files => files.filter(x => x.id !== id));
     this.pendingAttachments.update(p => [...p, { id: f.id, name: f.name }]);
     this.saveDocuments();
@@ -552,8 +727,16 @@ export class App implements AfterViewInit {
     const username = localStorage.getItem('ds_current_user') ?? 'anonymous';
     const folderId = this.activeConvId() ?? 'default';
     this.api.uploadDocument(f.file, folderId, username).subscribe({
-      next: () => {},
-      error: (err) => console.error('Upload failed for', f.name, err)
+      next: () => {
+        this.updateDocUploadingState(f.id, false, true);
+        this.toast.success(`"${f.name}" uploaded successfully.`);
+      },
+      error: (err) => {
+        console.error('Upload failed for', f.name, err);
+        const errMsg = err.error?.message ?? err.message ?? 'Upload failed';
+        this.updateDocUploadingState(f.id, false, false, errMsg);
+        this.toast.error(`"${f.name}" upload failed: ${errMsg}`);
+      }
     });
   }
 
@@ -568,7 +751,14 @@ export class App implements AfterViewInit {
     }
     
     const sessionTitle = this.activeConversation()?.title ?? 'General';
-    this.allDocuments.update(docs => [...docs, ...unsaved.map(f => ({ ...f, saved: true, sessionTitle }))]);
+    const docsToAdd = unsaved.map(f => ({
+      ...f,
+      saved: true,
+      sessionTitle,
+      uploading: true,
+      uploadSuccess: false
+    }));
+    this.allDocuments.update(docs => [...docs, ...docsToAdd]);
     this.stagedFiles.set([]);
     this.pendingAttachments.update(p => [...p, ...unsaved.map(f => ({ id: f.id, name: f.name }))]);
     this.saveDocuments();
@@ -577,8 +767,16 @@ export class App implements AfterViewInit {
     const folderId = this.activeConvId() ?? 'default';
     unsaved.forEach(f => {
       this.api.uploadDocument(f.file, folderId, username).subscribe({
-        next: () => {},
-        error: (err) => console.error('Upload failed for', f.name, err)
+        next: () => {
+          this.updateDocUploadingState(f.id, false, true);
+          this.toast.success(`"${f.name}" uploaded successfully.`);
+        },
+        error: (err) => {
+          console.error('Upload failed for', f.name, err);
+          const errMsg = err.error?.message ?? err.message ?? 'Upload failed';
+          this.updateDocUploadingState(f.id, false, false, errMsg);
+          this.toast.error(`"${f.name}" upload failed: ${errMsg}`);
+        }
       });
     });
   }
@@ -642,5 +840,62 @@ export class App implements AfterViewInit {
 
   getFileExtension(name: string): string {
     return name.split('.').pop()?.toUpperCase() ?? 'FILE';
+  }
+
+  onChatFileSelected(event: any) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    // Automatically initialize a chat conversation UUID if none is active
+    if (!this.activeConvId()) {
+      this.newChat();
+    }
+
+    const sessionTitle = this.activeConversation()?.title ?? 'General';
+    const folderId = this.activeConvId() ?? 'default';
+    const username = localStorage.getItem('ds_current_user') ?? 'anonymous';
+
+    Array.from(files).forEach((file: any) => {
+      const id = crypto.randomUUID();
+      const objectUrl = URL.createObjectURL(file);
+      const newDoc: ManagedFile = {
+        id,
+        file: file,
+        name: file.name,
+        size: this.formatSize(file.size),
+        type: file.type || 'application/octet-stream',
+        saved: true,
+        sessionTitle,
+        uploading: true,
+        uploadSuccess: false,
+        objectUrl,
+        safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(objectUrl)
+      };
+
+      // Add to allDocuments list
+      this.allDocuments.update(docs => [...docs, newDoc]);
+      // Immediately queue in pendingAttachments so it attaches to the active query!
+      this.pendingAttachments.update(p => [...p, { id, name: file.name }]);
+      this.saveDocuments();
+
+      this.api.uploadDocument(file, folderId, username).subscribe({
+        next: () => {
+          this.updateDocUploadingState(id, false, true);
+          this.toast.success(`"${file.name}" uploaded and attached successfully.`);
+        },
+        error: (err) => {
+          console.error('Upload failed for', file.name, err);
+          const errMsg = err.error?.message ?? err.message ?? 'Upload failed';
+          this.updateDocUploadingState(id, false, false, errMsg);
+          this.toast.error(`"${file.name}" upload failed: ${errMsg}`);
+        }
+      });
+    });
+
+    event.target.value = '';
+  }
+
+  removePendingAttachment(id: string) {
+    this.pendingAttachments.update(p => p.filter(f => f.id !== id));
   }
 }

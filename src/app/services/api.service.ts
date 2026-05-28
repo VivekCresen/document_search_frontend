@@ -414,4 +414,16 @@ export class ApiService {
   triggerBlobIndexing(req: TriggerIndexRequest): Observable<Record<string, unknown>> {
     return this.http.post<Record<string, unknown>>(`${this.base}/api/indexing/blobs/trigger`, req);
   }
+
+  // ── Chat History DB Endpoints ────────────────
+
+  /** GET /api/chat-history — retrieve conversations from DB */
+  getChatHistory(): Observable<Record<string, any>> {
+    return this.http.get<Record<string, any>>(`${this.base}/api/chat-history`);
+  }
+
+  /** DELETE /api/chat-history — clear conversations from DB */
+  clearChatHistory(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/api/chat-history`);
+  }
 }
